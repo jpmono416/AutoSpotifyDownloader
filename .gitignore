@@ -1,0 +1,8 @@
+.idea/
+client_secret.json
+.env
+match_log.csv
+__pycache__/
+yt_token.pickle
+yt_archive.log
+.cache
