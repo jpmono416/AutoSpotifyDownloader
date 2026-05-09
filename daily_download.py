@@ -2,10 +2,12 @@
 import subprocess, json, os, sys
 from pathlib import Path
 
+from spotify_to_youtube_sync import CONFIG_FILE
+
 # --- config ---
-SYNC_SCRIPT = Path("spotify_to_youtube_sync.py")
-PLAYLISTS_FILE = Path("playlists.json")
-ARCHIVE_FILE = Path("yt_archive.log")
+_BASE = Path(__file__).resolve().parent
+SYNC_SCRIPT = _BASE / "spotify_to_youtube_sync.py"
+ARCHIVE_FILE = _BASE / "yt_archive.log"
 MUSIC_DIR = Path.home() / "Music"  # change to your preferred library
 YTDLP_PATH = "yt-dlp"  # adjust if not in PATH
 
@@ -14,7 +16,7 @@ print("=== Running playlist sync ===")
 subprocess.run([sys.executable, str(SYNC_SCRIPT)], check=True)
 
 # --- step 2: load playlist mappings ---
-with open(PLAYLISTS_FILE, "r", encoding="utf-8") as f:
+with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     mapping = json.load(f)
 
 # --- step 3: download each YouTube playlist ---

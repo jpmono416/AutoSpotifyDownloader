@@ -8,9 +8,10 @@ import sys
 import json
 from pathlib import Path
 
+from spotify_to_youtube_sync import CONFIG_FILE
+
 # --- config ---
-PLAYLISTS_FILE = Path("playlists.json")
-ARCHIVE_FILE = Path("yt_archive.log")
+ARCHIVE_FILE = Path(__file__).resolve().parent / "yt_archive.log"
 MUSIC_DIR = Path.home() / "Music"
 YTDLP_PATH = "yt-dlp"
 
@@ -31,7 +32,7 @@ def download_playlists(playlist_names=None, log_callback=None):
     
     # Load playlist mappings
     try:
-        with open(PLAYLISTS_FILE, "r", encoding="utf-8") as f:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             mapping = json.load(f)
     except Exception as e:
         log_callback(f"⚠️  Error loading playlists.json: {e}")

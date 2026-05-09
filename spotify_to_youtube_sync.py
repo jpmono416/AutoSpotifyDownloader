@@ -22,8 +22,9 @@ import pickle
 import re
 
 # ------------------ CONFIG ------------------------------------
-CONFIG_FILE = Path("playlists.json")  # mapping Spotify→YouTube
-CACHE_FILE = Path("synced.json")  # local archive of added tracks
+_CONFIG_DIR = Path(__file__).resolve().parent
+CONFIG_FILE = _CONFIG_DIR / "playlists.json"  # mapping Spotify→YouTube
+CACHE_FILE = _CONFIG_DIR / "synced.json"  # local archive of added tracks
 SPOTIFY_SCOPES = "playlist-read-private"
 YT_SCOPES = ["https://www.googleapis.com/auth/youtube"]
 MAX_PLAYLISTS = 4
@@ -35,13 +36,12 @@ STOP_REASONS = {"quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded"}
 
 def load_json(path, default):
     if path.exists():
-        print(f"Loading {path}...", path.read_text())
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     return default
 
 
 def save_json(path, obj):
-    path.write_text(json.dumps(obj, indent=2))
+    path.write_text(json.dumps(obj, indent=2), encoding="utf-8")
 
 
 def normalize_archive_entry(entry):
@@ -66,8 +66,37 @@ def extract_error_reason(error):
         return None
 
 
-def ensure_youtube_playlist(friendly_name, playlist_id, playlist_state, yt, log_callback=print):
-    """Ensure YouTube playlist exists and is accessible."""
+def find_my_youtube_playlist_id_by_title(yt, title):
+    """Return playlist id for the authenticated channel's playlist with an exact title match (case-insensitive)."""
+    target = (title or "").strip().casefold()
+    if not target:
+        return None
+    request = yt.playlists().list(part="id,snippet", mine=True, maxResults=50)
+    while request:
+        response = request.execute()
+        for item in response.get("items", []):
+            snip = item.get("snippet") or {}
+            pl_title = (snip.get("title") or "").strip().casefold()
+            if pl_title == target:
+                return item["id"]
+        request = yt.playlists().list_next(request, response)
+    return None
+
+
+def ensure_youtube_playlist(
+    friendly_name,
+    playlist_id,
+    playlist_state,
+    yt,
+    log_callback=print,
+    reuse_existing_by_title=True,
+):
+    """Ensure YouTube playlist exists and is accessible.
+
+    If ``reuse_existing_by_title`` is True (no YouTube URL was stored in config),
+    an existing playlist on the account with the same title is used instead of creating one.
+    New playlists are created with public visibility.
+    """
     if playlist_id and playlist_state.get("validated"):
         return playlist_id
     try:
@@ -76,7 +105,14 @@ def ensure_youtube_playlist(friendly_name, playlist_id, playlist_state, yt, log_
             if resp.get("items"):
                 playlist_state["validated"] = True
                 return playlist_id
-        
+
+        if reuse_existing_by_title:
+            existing_id = find_my_youtube_playlist_id_by_title(yt, friendly_name)
+            if existing_id:
+                log_callback(f"Using existing YouTube playlist '{friendly_name}' (same title on your channel)")
+                playlist_state["validated"] = True
+                return existing_id
+
         log_callback(f"Creating new YouTube playlist for '{friendly_name}'")
         created = yt.playlists().insert(
             part="snippet,status",
@@ -85,7 +121,7 @@ def ensure_youtube_playlist(friendly_name, playlist_id, playlist_state, yt, log_
                     "title": friendly_name,
                     "description": "Auto-generated playlist for Spotify sync",
                 },
-                "status": {"privacyStatus": "private"},
+                "status": {"privacyStatus": "public"},
             },
         ).execute()
         playlist_state["validated"] = True
@@ -198,7 +234,8 @@ def parse_iso8601_duration(duration):
 def get_youtube_service():
     """Initialize and return YouTube API service."""
     creds = None
-    token_path = Path("yt_token.pickle")
+    token_path = _CONFIG_DIR / "yt_token.pickle"
+    client_secret = _CONFIG_DIR / "client_secret.json"
     if token_path.exists():
         creds = pickle.load(open(token_path, "rb"))
     if not creds or not creds.valid:
@@ -213,7 +250,7 @@ def get_youtube_service():
                     pass
                 creds = None
         if not creds or not creds.valid:
-            flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", YT_SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(str(client_secret), YT_SCOPES)
             creds = flow.run_local_server(port=0)
         pickle.dump(creds, open(token_path, "wb"))
     return build("youtube", "v3", credentials=creds)
@@ -395,31 +432,40 @@ def sync_playlists(playlist_names=None, log_callback=None):
         log_callback(f"⚠️  Error verifying YouTube auth: {e}")
         return {"success": False, "abort_reason": "auth_error", "results": {}}
     
-    # Load configs
-    mapping = load_json(CONFIG_FILE, {})
-    if len(mapping) == 0:
+    # Load configs (always keep full mapping for disk persistence; never save a filtered subset)
+    full_mapping = load_json(CONFIG_FILE, {})
+    if len(full_mapping) == 0:
         log_callback("⚠️  playlists.json is empty – add your mappings first.")
         return {"success": False, "abort_reason": "no_playlists", "results": {}}
-    
-    # Filter playlists if specified
+
     if playlist_names:
-        mapping = {k: v for k, v in mapping.items() if k in playlist_names}
-        if not mapping:
+        sync_mapping = {k: full_mapping[k] for k in playlist_names if k in full_mapping}
+        if not sync_mapping:
             log_callback("⚠️  No matching playlists found.")
             return {"success": False, "abort_reason": "no_matching_playlists", "results": {}}
+    else:
+        sync_mapping = full_mapping
     
     raw_archive = load_json(CACHE_FILE, {})
     archive = {pl_id: normalize_archive_entry(entry) for pl_id, entry in raw_archive.items()}
     
     updated_mapping = False
     playlist_states = {}
-    for friendly_name, ids in mapping.items():
+    for friendly_name, ids in sync_mapping.items():
         current_id = ids.get("youtube_id")
-        playlist_state = normalize_archive_entry(archive.get(current_id))
+        had_explicit_youtube_id = bool(current_id)
+        playlist_state = normalize_archive_entry(archive.get(current_id) if current_id else None)
         if current_id:
             archive[current_id] = playlist_state
         try:
-            ensured_id = ensure_youtube_playlist(friendly_name, current_id, playlist_state, yt, log_callback)
+            ensured_id = ensure_youtube_playlist(
+                friendly_name,
+                current_id,
+                playlist_state,
+                yt,
+                log_callback,
+                reuse_existing_by_title=not had_explicit_youtube_id,
+            )
             if ensured_id != current_id:
                 if current_id in archive:
                     archive.pop(current_id, None)
@@ -433,7 +479,7 @@ def sync_playlists(playlist_names=None, log_callback=None):
     # Main sync loop
     abort_reason = None
     results = {}
-    for friendly_name, ids in mapping.items():
+    for friendly_name, ids in sync_mapping.items():
         if abort_reason:
             break
         
@@ -449,11 +495,13 @@ def sync_playlists(playlist_names=None, log_callback=None):
         try:
             results_data = sp.playlist_items(sp_pl, additional_types=["track"])
             while True:
-                tracks.extend(results_data["items"])
-                if results_data["next"]:
+                items = results_data.get("items") or []
+                tracks.extend(items)
+                if results_data.get("next"):
                     results_data = sp.next(results_data)
                 else:
                     break
+            log_callback(f"Fetched {len(tracks)} items from Spotify for '{friendly_name}'.")
         except Exception as e:
             log_callback(f"⚠️  Error fetching Spotify playlist: {e}")
             results[friendly_name] = {"success": False, "added": 0, "error": str(e)}
@@ -479,18 +527,50 @@ def sync_playlists(playlist_names=None, log_callback=None):
             playlist_videos = set()
         
         added_this_run = 0
-        for item in tracks[start_index:]:
+        for idx_item, item in enumerate(tracks[start_index:]):
             if abort_reason:
                 break
-            t = item["track"]
-            if not t or not t["id"]:
+
+            # Defensive handling: Spotify may return items that are not standard track objects
+            # (e.g. episodes, local files, or malformed entries). Try common shapes and skip
+            # anything that doesn't expose a usable track id / metadata.
+            t = (
+                (item.get("track") if isinstance(item, dict) else None)
+                or (item.get("item") if isinstance(item, dict) else None)  # newer Spotify SDKs use "item"
+                or (item.get("episode") if isinstance(item, dict) else None)
+                or item
+            )
+
+            if not isinstance(t, dict):
+                log_callback(f"⚠️  Skipping unexpected playlist item at index {idx_item} (type={type(t).__name__}).")
                 continue
-            track_id = t["id"]
+
+            track_id = t.get("id")
+            if not track_id:
+                keys_preview = list(t.keys())
+                log_callback(f"⚠️  Skipping item without 'id' at index {idx_item}; keys={keys_preview}.")
+                continue
+
             if track_id in pl_state["tracks"]:
                 continue
-            
-            artist = t["artists"][0]["name"]
-            title = t["name"]
+
+            # Extract artist name
+            artist = ""
+            artists_field = t.get("artists")
+            if isinstance(artists_field, list) and artists_field:
+                first_artist = artists_field[0] or {}
+                artist = first_artist.get("name") or ""
+            elif isinstance(artists_field, dict):
+                artist = artists_field.get("name") or ""
+
+            title = t.get("name") or ""
+            if not artist or not title:
+                # Incomplete metadata – skip rather than fail.
+                log_callback(
+                    f"⚠️  Skipping item with missing artist/title at index {idx_item}; "
+                    f"artist={artist!r}, title={title!r}."
+                )
+                continue
             query = f"{artist} - {title}"
             
             try:
@@ -559,7 +639,7 @@ def sync_playlists(playlist_names=None, log_callback=None):
     # Persist archive
     save_json(CACHE_FILE, archive)
     if updated_mapping:
-        save_json(CONFIG_FILE, mapping)
+        save_json(CONFIG_FILE, full_mapping)
     
     log_callback("\nSync finished.")
     return {"success": abort_reason is None, "abort_reason": abort_reason, "results": results}

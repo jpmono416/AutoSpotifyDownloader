@@ -159,8 +159,12 @@ class SpotifyYouTubeApp:
         youtube_entry.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
         
         # Info label
-        info_label = ttk.Label(frame, text="If no YouTube URL is provided, a new playlist will be created.", 
-                               foreground="gray")
+        info_label = ttk.Label(
+            frame,
+            text="If no YouTube URL is provided, an existing channel playlist with the same name is reused when possible; otherwise a new public playlist is created.",
+            foreground="gray",
+            wraplength=460,
+        )
         info_label.grid(row=4, column=0, sticky=tk.W, pady=(0, 15))
         
         # Status label
