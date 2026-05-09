@@ -20,7 +20,9 @@ from spotify_to_youtube_sync import (
     add_playlist_to_config,
     remove_playlists_from_config
 )
-from download_playlists import download_playlists
+from download_playlists import download_playlists, DOWNLOAD_LOG_FILE
+
+_PROJECT_DIR = Path(__file__).resolve().parent
 
 
 class SpotifyYouTubeApp:
@@ -119,6 +121,7 @@ class SpotifyYouTubeApp:
         
         ttk.Button(history_frame, text="View Match Log", command=self.view_match_log).pack(side=tk.LEFT, padx=5)
         ttk.Button(history_frame, text="View Archive Log", command=self.view_archive_log).pack(side=tk.LEFT, padx=5)
+        ttk.Button(history_frame, text="View Download Log", command=self.view_download_log).pack(side=tk.LEFT, padx=5)
         ttk.Button(history_frame, text="View Synced Data", command=self.view_synced_data).pack(side=tk.LEFT, padx=5)
     
     def select_all(self):
@@ -376,7 +379,11 @@ class SpotifyYouTubeApp:
     def run_download(self, playlist_names):
         """Run download operation (called in thread)."""
         try:
-            result = download_playlists(playlist_names=playlist_names, log_callback=self.log)
+            result = download_playlists(
+                playlist_names=playlist_names,
+                log_callback=self.log,
+                concise_ui=True,
+            )
             if result["success"]:
                 self.log("✓ Download completed successfully!")
                 self.update_status("Download completed", "green")
@@ -405,6 +412,10 @@ class SpotifyYouTubeApp:
         """Open archive log in a new window."""
         self.view_file("yt_archive.log", "Archive Log")
     
+    def view_download_log(self):
+        """Open yt-dlp download log in a new window."""
+        self.view_file(DOWNLOAD_LOG_FILE, "Download Log (yt-dlp)")
+    
     def view_synced_data(self):
         """Open synced data in a new window."""
         self.view_file("synced.json", "Synced Data")
@@ -412,7 +423,11 @@ class SpotifyYouTubeApp:
     def view_file(self, filename, title):
         """View a file in a new window."""
         filepath = Path(filename)
-        if not filepath.exists():
+        if not filepath.is_file():
+            alt = _PROJECT_DIR / Path(filename).name
+            if alt.is_file():
+                filepath = alt
+        if not filepath.is_file():
             messagebox.showinfo("File Not Found", f"{filename} does not exist yet.")
             return
         

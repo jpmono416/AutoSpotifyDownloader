@@ -6949,11 +6949,90 @@
       "7hZRYMMHKF34HwyLdp65FF": {
         "video_id": "niVw5IJdbrE",
         "synced_at": 1776256044.4685433
+      },
+      "6gfAb1m634zJ4AaFsxUo1m": {
+        "video_id": "LDzUa4s1mtc",
+        "synced_at": 1778336962.3151486
+      },
+      "3tPoEUAlWroxELcJOXdVme": {
+        "video_id": "7cqGT2INnbs",
+        "synced_at": 1778336964.2656
+      },
+      "1kv7nlBF2o2m0QBCcsg9iR": {
+        "video_id": "UtnXrlGM5QU",
+        "synced_at": 1778336966.213533
+      },
+      "3ajiQwDHMWEVxZKXWPZtNg": {
+        "video_id": "yu5-lapQ-Fs",
+        "synced_at": 1778336968.2523298
+      },
+      "4pCyYOlF1cKMQF9medNPTI": {
+        "video_id": "9yEiM606tgY",
+        "synced_at": 1778336970.267238
+      },
+      "0WKvbsmikzOIML5yl05N8v": {
+        "video_id": "m71Zwjat6y8",
+        "synced_at": 1778336972.356171
+      },
+      "2zEBCx9JYDmmgbeC0xD33j": {
+        "video_id": "uPdXpax_Rb0",
+        "synced_at": 1778336974.557053
+      },
+      "7gjkZCEkn7xT3m7Rxh8Iqo": {
+        "video_id": "J_tq-Se7RbM",
+        "synced_at": 1778336976.843032
+      },
+      "3LrDJKnlvKBqseshXCRWuZ": {
+        "video_id": "M8QCmwd-7mU",
+        "synced_at": 1778336979.228193
+      },
+      "7nxEL707OZJDvRORwZvN9W": {
+        "video_id": "S_lFVpFQikQ",
+        "synced_at": 1778336981.2541127
+      },
+      "2Z91RmYAHpoXiGc3S5e8XM": {
+        "video_id": "SPc-oWXEhQQ",
+        "synced_at": 1778336983.2456589
       }
     },
-    "last_processed": "7hZRYMMHKF34HwyLdp65FF",
+    "last_processed": "2Z91RmYAHpoXiGc3S5e8XM",
     "playlist_cache": {
       "video_ids": [
+        "niVw5IJdbrE",
+        "_jvIKYRmjng",
+        "rKOW04c7fuA",
+        "0U9a0tmMQnM",
+        "zN9ab6dYBLk",
+        "8dMNjzuHPfc",
+        "f6Bi6MnoHhc",
+        "UTzFJHbc1ZM",
+        "qzSIPQqS8t4",
+        "n237snEB-VQ",
+        "pbVTmNR3P40",
+        "SkC1xV5GD7o",
+        "xm1GW8896Tc",
+        "bTiu9nfgGys",
+        "0l-pf0TFcGs",
+        "s1xf5ycsCvg",
+        "hOGCmpEtzKY",
+        "ToiUQuIiDdU",
+        "49nlGiMOCPo",
+        "2-KE_wbIPjE",
+        "bQtv-q-CROY",
+        "bJ2wtjNz6sk",
+        "V0rMY9WgtKE",
+        "x8A0t3nGKkY",
+        "_ffA4rFfKbM",
+        "ltedN7w33Bg",
+        "dv_2lGGGGpo",
+        "ltPmFFRL50M",
+        "p9nrIa7Nquw",
+        "JfB264m6wh4",
+        "-zQt1OEuOTE",
+        "b61ox-PfyDQ",
+        "w7Si6jbupTQ",
+        "jAY2ehBDmO4",
+        "3NgQmcUl1fI",
         "qLy3aoiFq3I",
         "5hUFQ_pg_E8",
         "lvoXXClP6X8",
@@ -7497,43 +7576,19 @@
         "NGwvKGZCLYs",
         "t1Fttz0OrnI",
         "ZdbpXjCeL8M",
-        "3NgQmcUl1fI",
-        "jAY2ehBDmO4",
-        "w7Si6jbupTQ",
-        "b61ox-PfyDQ",
-        "-zQt1OEuOTE",
-        "JfB264m6wh4",
-        "p9nrIa7Nquw",
-        "ltPmFFRL50M",
-        "dv_2lGGGGpo",
-        "ltedN7w33Bg",
-        "_ffA4rFfKbM",
-        "x8A0t3nGKkY",
-        "V0rMY9WgtKE",
-        "bJ2wtjNz6sk",
-        "bQtv-q-CROY",
-        "2-KE_wbIPjE",
-        "49nlGiMOCPo",
-        "ToiUQuIiDdU",
-        "hOGCmpEtzKY",
-        "s1xf5ycsCvg",
-        "0l-pf0TFcGs",
-        "bTiu9nfgGys",
-        "xm1GW8896Tc",
-        "SkC1xV5GD7o",
-        "pbVTmNR3P40",
-        "n237snEB-VQ",
-        "qzSIPQqS8t4",
-        "UTzFJHbc1ZM",
-        "f6Bi6MnoHhc",
-        "8dMNjzuHPfc",
-        "zN9ab6dYBLk",
-        "0U9a0tmMQnM",
-        "rKOW04c7fuA",
-        "_jvIKYRmjng",
-        "niVw5IJdbrE"
+        "LDzUa4s1mtc",
+        "7cqGT2INnbs",
+        "UtnXrlGM5QU",
+        "yu5-lapQ-Fs",
+        "9yEiM606tgY",
+        "m71Zwjat6y8",
+        "uPdXpax_Rb0",
+        "J_tq-Se7RbM",
+        "M8QCmwd-7mU",
+        "S_lFVpFQikQ",
+        "SPc-oWXEhQQ"
       ],
-      "fetched_at": 1776256044.4685433
+      "fetched_at": 1778336983.2456589
     },
     "validated": true
   },
@@ -7547,562 +7602,78 @@
     "tracks": {
       "5rQgEYUyzhfzep1VgpGisc": {
         "video_id": "RKip9iz8LS8",
-        "synced_at": 1769010772.429439
+        "synced_at": 1778337016.8763676
       },
       "54jVLDwMhPqVBitI9Mwljb": {
         "video_id": "FREY7hPoFeU",
-        "synced_at": 1769010774.5835147
+        "synced_at": 1778337017.487401
       },
       "4FkNIKe8KE52EJvK6QKsxm": {
         "video_id": "VBLvy6oI1g0",
-        "synced_at": 1769010776.5625925
+        "synced_at": 1778337018.049997
       },
       "6kp5d8CouEFOWVjIDveT40": {
-        "video_id": "1DiLTtGUGqg",
-        "synced_at": 1769010778.537712
+        "video_id": "isAaQddQJVk",
+        "synced_at": 1778337019.2937791
       },
       "1qEsA5AdQ97PKmS6gmqPQQ": {
         "video_id": "JIKLHCzPMOg",
-        "synced_at": 1769010780.5053763
+        "synced_at": 1778337020.708311
       },
       "1rl2Ea1lsE2s3rjZnLVDlR": {
         "video_id": "ad3JqYaXawA",
-        "synced_at": 1769010783.1304004
+        "synced_at": 1778337021.284073
       },
       "6tZRdBt83iROwEZjkJGYrM": {
         "video_id": "zKqjiGsOXmo",
-        "synced_at": 1769010785.117882
+        "synced_at": 1778337021.796745
       },
       "2lvUPAhbJr6jK3NKgaGQKW": {
         "video_id": "5YpDuK5twdA",
-        "synced_at": 1769010787.2237258
+        "synced_at": 1778337022.3178098
       },
       "5mjYQaktjmjcMKcUIcqz4s": {
         "video_id": "S2TaAcwC_zI",
-        "synced_at": 1769010789.2220197
+        "synced_at": 1778337022.7009115
       },
       "1MjeCJXRMSaUMZ0KLdsQDn": {
         "video_id": "FJieaadmiS8",
-        "synced_at": 1769010791.1801534
+        "synced_at": 1778337023.2572572
       },
       "3lzYxSGAtBBIMcakBXkvkS": {
         "video_id": "Tf5nLY254ac",
-        "synced_at": 1769010793.126843
+        "synced_at": 1778337023.7404199
       },
       "5soWKIkC6GnpZT99IatCYq": {
-        "video_id": "30m8nDlU3Do",
-        "synced_at": 1769010795.0887916
+        "video_id": "nr1Yqjpdk3A",
+        "synced_at": 1778337024.854064
       },
       "487Ump1JOYK3wSqB6KIOUd": {
         "video_id": "sytZEuBv7vU",
-        "synced_at": 1769010796.9454632
+        "synced_at": 1778337026.3063345
       },
       "2KVJEq0uhuKTqxpkb9srV6": {
         "video_id": "YoCvPh0BOZk",
-        "synced_at": 1769010798.839252
+        "synced_at": 1778337026.794832
       },
       "6ieTQJCmIPPs0yPUzMR2dY": {
         "video_id": "bxtbR6InYVw",
-        "synced_at": 1769010800.7694862
+        "synced_at": 1778337027.3133824
       },
       "0cx2cgwIoRAOagi5aYXJaL": {
         "video_id": "LeBf0wh9n0E",
-        "synced_at": 1769010802.5646734
+        "synced_at": 1778337027.7349498
       },
       "2ms2VLHcIj35LXNoQDPFqz": {
         "video_id": "04DYGVoKuL8",
-        "synced_at": 1769010804.4867966
+        "synced_at": 1778337028.2805095
       },
       "0DYXPCScabMgLGj0W5OFUc": {
         "video_id": "odANgv945Dw",
-        "synced_at": 1769010806.4549158
-      },
-      "7HR8EfLUoYPZEG74vwgyFU": {
-        "video_id": "27-RllgHN8Y",
-        "synced_at": 1769010808.3147202
-      },
-      "1vGOnBdcfYUJGz2gqyVqnh": {
-        "video_id": "jRs4C7nQ_3A",
-        "synced_at": 1769010810.662595
-      },
-      "6RZo8T7GY9EoWZXC5i2587": {
-        "video_id": "zxf7UqmbRu4",
-        "synced_at": 1769010812.4633887
-      },
-      "2qxiyScLvjCMb9gg1hTl5F": {
-        "video_id": "Fg_muDHhxD4",
-        "synced_at": 1769010814.806998
-      },
-      "1hUTI1FVsGJ10SptsuxXkt": {
-        "video_id": "PMcfNv7ad10",
-        "synced_at": 1769010816.7228537
-      },
-      "7IgmFzArbR8sZtDCebBFA0": {
-        "video_id": "yLjuleIa6BM",
-        "synced_at": 1769010818.7059338
-      },
-      "1CURVg07JNoRfEBylXcVnG": {
-        "video_id": "41lIuD5by6E",
-        "synced_at": 1769010820.5777588
-      },
-      "7pyxv0AmWhYdJB6FgeDF8S": {
-        "video_id": "YvXtvxsQpTI",
-        "synced_at": 1769010822.3862312
-      },
-      "60DF3TWLFfr3jn1mFhhNKZ": {
-        "video_id": "c239g16LHKk",
-        "synced_at": 1769010824.2906067
-      },
-      "6mJvuMxgSUe9oLyTXOZ39O": {
-        "video_id": "KIEQkFgqu0c",
-        "synced_at": 1769010826.3238387
-      },
-      "0pJjHONYVlyB8auE0HlOA5": {
-        "video_id": "259E8abseaw",
-        "synced_at": 1769010828.0922134
-      },
-      "70EN4dkjvf6DN40ivdrY8A": {
-        "video_id": "IPcv-Q6kwa8",
-        "synced_at": 1769010829.9457903
-      },
-      "2dZlG5nePCkgP3CjHH6A2B": {
-        "video_id": "OKnXIanBqmw",
-        "synced_at": 1769010831.8912892
-      },
-      "0uSPqDOousOeEqXjwb4xjd": {
-        "video_id": "fZ3Fm_8uI_U",
-        "synced_at": 1769010834.0274255
-      },
-      "7GpgM1wuYY20GbKX3vzUw8": {
-        "video_id": "1jl26hdeFek",
-        "synced_at": 1769010835.9833617
-      },
-      "2wCCByZiZSDhsrRkKApUxO": {
-        "video_id": "1rL3azzXtio",
-        "synced_at": 1769010838.545351
-      },
-      "2BLQu0cF9ZjWwRJFAmbCDc": {
-        "video_id": "Jaic-Knj-m8",
-        "synced_at": 1769010840.4708207
-      },
-      "7y8GpVQJqcIJy5HYhC0PQF": {
-        "video_id": "PboXwPnahbk",
-        "synced_at": 1769010842.494829
-      },
-      "5HmVqAvWJ0ziUtrU9gwEon": {
-        "video_id": "NQVZZ8Px25Q",
-        "synced_at": 1769010844.3056507
-      },
-      "5pMHruc8MOFAhK6ILZAUpo": {
-        "video_id": "7QX-TGoA0Yc",
-        "synced_at": 1769010846.5632932
-      },
-      "2oNC1ho8wDkxk3AEfwCqDr": {
-        "video_id": "haikJ1XWz3U",
-        "synced_at": 1769010848.8578613
-      },
-      "6rFys2wCWn1viOIjZUneJV": {
-        "video_id": "kWQa7L23nlE",
-        "synced_at": 1769010850.7738082
-      },
-      "3KAlT4EdBxZJLGlBDWLEcn": {
-        "video_id": "4lWky_Hf308",
-        "synced_at": 1769010853.2120755
-      },
-      "5RTbGokbyP2HJGEwYc6aTM": {
-        "video_id": "0GW8gENpImo",
-        "synced_at": 1769010855.0769722
-      },
-      "6YoCno4k5HHDJmTl7i8MAY": {
-        "video_id": "qDrX1jRRov0",
-        "synced_at": 1769010856.957916
-      },
-      "2hvDzhwygeMHP7O4KVYY2h": {
-        "video_id": "h4046pu6m44",
-        "synced_at": 1769010858.8730192
-      },
-      "5IR3C9jtWWI04VFwadYsmz": {
-        "video_id": "P51-O9tjIxs",
-        "synced_at": 1769010861.0291126
-      },
-      "6z3BZopnsfTbZDfXCchvht": {
-        "video_id": "jzL5-btc-PU",
-        "synced_at": 1769010863.3474586
-      },
-      "4GYaNWKlfdlGkEVaL93lQa": {
-        "video_id": "3-JRWM2D8Ss",
-        "synced_at": 1769010865.4187486
-      },
-      "1cUMjhHLPqZv7JVepLWx0I": {
-        "video_id": "J2hPp5OV6d4",
-        "synced_at": 1769010867.3665116
-      },
-      "7FEnfiBmuKJbvAHRXNjsKf": {
-        "video_id": "T2OS5OcQAZk",
-        "synced_at": 1769010869.330651
-      },
-      "47dZAvG2TX4jree2FbLXzi": {
-        "video_id": "55Y74ED7xUI",
-        "synced_at": 1769010871.2176938
-      },
-      "4cSSei5eTXf1vo4xEJkCv3": {
-        "video_id": "G5M7Rycl3nM",
-        "synced_at": 1769010873.1559422
-      },
-      "0AQqSWXtsbzf5cjuWajOrK": {
-        "video_id": "1p051Kln0x8",
-        "synced_at": 1769010875.116217
-      },
-      "4IQId24QYGXNSlNrk1fg3h": {
-        "video_id": "IxUBuqShDNo",
-        "synced_at": 1769010877.0705554
-      },
-      "1Y7DqwiPgGFNHysWCX9Asv": {
-        "video_id": "hBjFKiez9fY",
-        "synced_at": 1769010879.0684202
-      },
-      "0hZnlsfFJcBKG3QYfcA2aX": {
-        "video_id": "1ZjB2G1zjus",
-        "synced_at": 1769010880.946299
-      },
-      "2XyUURiyhI6Djy3q9ROZr9": {
-        "video_id": "N5NG1oiypTg",
-        "synced_at": 1769010882.8098485
-      },
-      "4DdCH1WbRz8KacHVMdRfmt": {
-        "video_id": "e0ufgX0f_5c",
-        "synced_at": 1769010884.709467
-      },
-      "3oHL1dgPhTWWxOeUn1lJgC": {
-        "video_id": "gJ220_lH4pU",
-        "synced_at": 1769010886.5219798
-      },
-      "6M27dBOxbihrDbUwIzo0wX": {
-        "video_id": "N9li6V1KJIE",
-        "synced_at": 1769010888.4657984
-      },
-      "2vwgwXyr4868GaLeJ7ZYll": {
-        "video_id": "lu8ISlJ0_Mc",
-        "synced_at": 1769010890.9437017
-      },
-      "4qjvm3eFsTe8nY5Vm2CxE7": {
-        "video_id": "1XvCtmYKHiU",
-        "synced_at": 1769010893.420853
-      },
-      "27rzMc0cmYujroIyt4aDAy": {
-        "video_id": "ji3K_166qxs",
-        "synced_at": 1769010895.7361932
-      },
-      "0hNPF6jZIXjMkTevDrgF6T": {
-        "video_id": "QBseWQ8Ttk0",
-        "synced_at": 1769010898.4878857
-      },
-      "1Q4iH1FFNBigEIuMRlCs4H": {
-        "video_id": "t1oKi69PJ4o",
-        "synced_at": 1769010900.348466
-      },
-      "3Yvuh8zYdBBKIjyFxFvxja": {
-        "video_id": "9jTP3HUJr1k",
-        "synced_at": 1769010902.5931413
-      },
-      "1VoxlUuktBFjNsCSuaMwhv": {
-        "video_id": "m9lu1bsQA6A",
-        "synced_at": 1769619839.4721613
-      },
-      "5PXEYFbkTe6c2ZukhU3dJ2": {
-        "video_id": "jhldY_XoJkE",
-        "synced_at": 1769619839.9237914
-      },
-      "0yrL00WKhNBOrvL6C3n3w4": {
-        "video_id": "u0JSmAeil54",
-        "synced_at": 1769619840.3748233
-      },
-      "6GtCOFgdlbBYik3j0FWoVU": {
-        "video_id": "ZyR5XbaJbW0",
-        "synced_at": 1769619841.0334203
-      },
-      "11brntjjxAHD5lXVoIurYu": {
-        "video_id": "Y_0BAyzCfUE",
-        "synced_at": 1769619841.630621
-      },
-      "3iru7hbJpksLygKIRnuLvd": {
-        "video_id": "d9XSwge3P08",
-        "synced_at": 1769619842.5000546
-      },
-      "2NKtGhut6RFw4LuPnVoLdT": {
-        "video_id": "OzcwdKdw0_M",
-        "synced_at": 1769619844.6248446
-      },
-      "0BEP5WfJhyX7eJ9jBJ341x": {
-        "video_id": "FzpG003Gv_Y",
-        "synced_at": 1769619846.3954008
-      },
-      "5rzJpM33yH0bHF6XOmmqnb": {
-        "video_id": "xhGH_-yOFOc",
-        "synced_at": 1769619848.3268323
-      },
-      "2qOl1gUzPn04xwm9HFMnag": {
-        "video_id": "Hv2zs2xLJdI",
-        "synced_at": 1769619850.405072
-      },
-      "5VW0ad5Y1ATXiye1hQbN95": {
-        "video_id": "KH-BSo_ZDh4",
-        "synced_at": 1769619852.403895
-      },
-      "6PbDGsz1YF8vKNVmn0Lu9c": {
-        "video_id": "KQ5qGag0lWs",
-        "synced_at": 1769619854.4927425
-      },
-      "7yLe3cpDH4kjITRLNZMr6i": {
-        "video_id": "F4bDjy0CQpg",
-        "synced_at": 1769619856.4096556
-      },
-      "0GLwjdIo4S1X0kOJLBDZ8i": {
-        "video_id": "rLTBHYyVcaM",
-        "synced_at": 1769619858.3126771
-      },
-      "6ocnrikDz19ni9cTfb9otj": {
-        "video_id": "UYDu3beuCxs",
-        "synced_at": 1769619860.2373314
-      },
-      "4uW9dtQpVIicdTOo5SaX4x": {
-        "video_id": "6MKA6HqykSo",
-        "synced_at": 1769619862.069523
-      },
-      "1A8WZgfOGq3Axyetvbun0d": {
-        "video_id": "OeKkZqOMG5w",
-        "synced_at": 1769619864.0043554
-      },
-      "4IL4X08fdCebYpnJfnNleC": {
-        "video_id": "Cc-vWktv80o",
-        "synced_at": 1769619866.018203
-      },
-      "6VQCmKT5jFdHJVGMbAnxoO": {
-        "video_id": "magiFeakFxU",
-        "synced_at": 1769619867.915901
-      },
-      "1C8IbiaB9p6Z15qmW6Wrfb": {
-        "video_id": "OX5JIXJkApE",
-        "synced_at": 1769619869.8507876
-      },
-      "66wF0AO1jX9HYmnHGu0f2G": {
-        "video_id": "XdOxBg2lSOE",
-        "synced_at": 1769619871.7523916
-      },
-      "16QVPO8r4D2hss5TitRb6U": {
-        "video_id": "G5ZUiKwnccc",
-        "synced_at": 1769619873.6896963
-      },
-      "3qRxTveOENmn9k2d9jRKli": {
-        "video_id": "-ujroQg9X1s",
-        "synced_at": 1769619875.4430912
-      },
-      "66oJToiSumhnPXIoA4zYCv": {
-        "video_id": "6nvbC2px9U4",
-        "synced_at": 1769619877.4747021
-      },
-      "4StNOMIwB6O8IDScS64yFW": {
-        "video_id": "63HLHhSc8t8",
-        "synced_at": 1769619879.3139095
-      },
-      "0kIgFOHoEy2L1CMO4Vo09k": {
-        "video_id": "RDs_plYVX9I",
-        "synced_at": 1769619881.217702
-      },
-      "4KYaSkUdtxwJEtxu2R1aVb": {
-        "video_id": "bfAkJi1aZPs",
-        "synced_at": 1769619883.2801015
-      },
-      "46dhEmph6KRsmGBQdOYoa2": {
-        "video_id": "2DUbF2Ql-cw",
-        "synced_at": 1769619885.1314182
-      },
-      "7prqZ9Le5L0z6DRYcnhghP": {
-        "video_id": "4q9-6htZI90",
-        "synced_at": 1769619886.908843
-      },
-      "3PAa3JOAjOAlUl3Y1g6aqj": {
-        "video_id": "s-88FXuizJo",
-        "synced_at": 1769619888.744114
-      },
-      "4WV65A5KKniOVrxsx1LdBw": {
-        "video_id": "N-HejRy7Vqk",
-        "synced_at": 1769619890.6940289
-      },
-      "59gao4J29p9PyrTRADCQb0": {
-        "video_id": "-9DgfFXr6BM",
-        "synced_at": 1769619892.822198
-      },
-      "0JtFwU5y8VNi6X17i5vJpR": {
-        "video_id": "kxJSpp3B0cY",
-        "synced_at": 1769619894.7593696
-      },
-      "5kcNWPD0e8pUEyulHoaL7Y": {
-        "video_id": "rs3WJYxRIuk",
-        "synced_at": 1769619896.6415267
-      },
-      "5Lnb0gCpdpCwqDsgfPRypY": {
-        "video_id": "lpUoGHvhbHE",
-        "synced_at": 1769619898.6268294
-      },
-      "694dpEZSyNrRj6Q4Tk5hX5": {
-        "video_id": "SeOR_Q4F1kg",
-        "synced_at": 1769619900.6252694
-      },
-      "3LRGxgAREjxfad7Zs3syep": {
-        "video_id": "DhU5agvzlLg",
-        "synced_at": 1770478801.3123727
-      },
-      "653rnahm6vWPK5knSzQW8l": {
-        "video_id": "-5UfDKjH0XQ",
-        "synced_at": 1770478803.11045
-      },
-      "7tAv6vHfBAeN8EKf2giKwy": {
-        "video_id": "qqml6Fsmah8",
-        "synced_at": 1770478804.8586006
-      },
-      "3iJDVtjZGLkWQOG53XdTvF": {
-        "video_id": "jxAVS56-F3o",
-        "synced_at": 1770478806.6481845
-      },
-      "0dbRDnW7uqz5yRypxAd3g9": {
-        "video_id": "-foL5Q2vD58",
-        "synced_at": 1770478808.5079534
-      },
-      "6issSZ14PkIlO2jFhbgmBI": {
-        "video_id": "J70gg9bSVt4",
-        "synced_at": 1770478810.3387969
-      },
-      "0il3qBSNT8rzdMQBFasIGu": {
-        "video_id": "hLRLNzS-UB8",
-        "synced_at": 1770478812.1988168
-      },
-      "1zC4sSos0usr581YDKXS7d": {
-        "video_id": "L8tfnkqhZso",
-        "synced_at": 1771082377.183176
-      },
-      "4CtaRex3J6SMaRV0yq5vCP": {
-        "video_id": "g2NS6uYGaH0",
-        "synced_at": 1771082379.0792718
-      },
-      "10HoW37ag4VmVHko4uaayS": {
-        "video_id": "hIUvHH2Udi8",
-        "synced_at": 1771082380.9328988
-      },
-      "6RrbGMynosiTtvZvmk5jJI": {
-        "video_id": "UbVPIZu4l6E",
-        "synced_at": 1771082382.6393626
-      },
-      "5ZP4JyGJqmaCwUP9LSsjpS": {
-        "video_id": "qGVZNU5pJKY",
-        "synced_at": 1771082384.4490058
-      },
-      "5ARxlAO7Gj9q0CXABk3T5G": {
-        "video_id": "r5cUHWQIFBw",
-        "synced_at": 1771082386.3890345
-      },
-      "55ThMbyQ1jkIeEYmjmasZY": {
-        "video_id": "C4Cv2KzpSSY",
-        "synced_at": 1771082388.205603
-      },
-      "5nayI3I6UJ83vKp7mObwrc": {
-        "video_id": "tRGHA52lvzc",
-        "synced_at": 1771082390.01256
-      },
-      "6p460djU6s7IZZoFDaaAAs": {
-        "video_id": "ovGwbUpR9-E",
-        "synced_at": 1771082391.9236436
-      },
-      "5GIkQHjpNBa3akdtYyUxkw": {
-        "video_id": "BVFbh9DwpaQ",
-        "synced_at": 1771082393.6004212
-      },
-      "422w50EAk1fhpXrqOsYlpv": {
-        "video_id": "jLxQ1kenvOM",
-        "synced_at": 1771082395.3678854
-      },
-      "5BeSGAPPyRHIe0YDfKpUyO": {
-        "video_id": "j5KZ8H92NPg",
-        "synced_at": 1772479839.3198378
-      },
-      "4qGAG2oAeqeZOcHT6L8soS": {
-        "video_id": "9CMPkzOupBo",
-        "synced_at": 1772479841.437429
-      },
-      "4Ec7KJg0N312Kj3QL9tlPX": {
-        "video_id": "dFbTcNUNnpM",
-        "synced_at": 1772479843.2424471
-      },
-      "2SY2nyYUDbt1KILfvBVKzt": {
-        "video_id": "VX3Wd0M0qrM",
-        "synced_at": 1772479845.157237
-      },
-      "35E37Gwk2fCeryQDE8iwLV": {
-        "video_id": "iDIoDqGT7HQ",
-        "synced_at": 1772479847.1728587
-      },
-      "5vp5oJAwrCfZuzBmA2JBkd": {
-        "video_id": "nTY5yRoQAhs",
-        "synced_at": 1772479848.943398
-      },
-      "5alHHnO50nBpVoq5ixJZHv": {
-        "video_id": "hrjguBVaUD0",
-        "synced_at": 1772479850.9592452
-      },
-      "0RoVFuK18xPibukqas21Sj": {
-        "video_id": "bHQOaUMCIs0",
-        "synced_at": 1772479852.6410046
-      },
-      "6QSdnl1Elyl7cWT9VAFE0M": {
-        "video_id": "0FcZs03vrX0",
-        "synced_at": 1772479854.6617916
-      },
-      "11UqgCG6cBTV8Vs3aBLFVZ": {
-        "video_id": "5zonqxm342o",
-        "synced_at": 1772479856.6419966
-      },
-      "5ug7G2zS4qPHuQPlSFXqMR": {
-        "video_id": "hxwrqv6O_Hc",
-        "synced_at": 1772479858.5719411
-      },
-      "0jbzdgxBnbDb2whWC8JXQk": {
-        "video_id": "hxoa3UcBxy4",
-        "synced_at": 1772479860.3869154
-      },
-      "7uONBC7k7ygU5WbL8NRQ84": {
-        "video_id": "UHRDHW6FvGg",
-        "synced_at": 1772479862.1486466
-      },
-      "6Ii2jJUtTHsCnKFU3pe9OS": {
-        "video_id": "PwEYeYfearY",
-        "synced_at": 1772479864.0385094
-      },
-      "1Awpr96rqDslWx73rhstpB": {
-        "video_id": "Tpmmcv6krVw",
-        "synced_at": 1772621970.6725051
-      },
-      "5pATolOG9InHxjlHLYSKye": {
-        "video_id": "3r7GXE_lBpY",
-        "synced_at": 1772621972.614333
-      },
-      "14LbjkFNTOttkrMYWhU7mF": {
-        "video_id": "f-FndCfGhCY",
-        "synced_at": 1772621974.248374
-      },
-      "0gJhp04VHOB5tm3CFDjnZZ": {
-        "video_id": "_f94bQQjKlo",
-        "synced_at": 1775918895.1870785
-      },
-      "2lSmhSUBKcUozRUZQMlSD7": {
-        "video_id": "Tp1f3pXoAGg",
-        "synced_at": 1775918897.4427762
-      },
-      "3LrWJYGeQHJD6uFCYVdfFZ": {
-        "video_id": "9N-Ftr4LA0Q",
-        "synced_at": 1775918899.6332123
+        "synced_at": 1778337028.7127075
       }
     },
-    "last_processed": "3LrWJYGeQHJD6uFCYVdfFZ",
+    "last_processed": "0DYXPCScabMgLGj0W5OFUc",
     "playlist_cache": {
       "video_ids": [
         "RKip9iz8LS8",
@@ -8243,224 +7814,234 @@
         "f-FndCfGhCY",
         "_f94bQQjKlo",
         "Tp1f3pXoAGg",
-        "9N-Ftr4LA0Q"
+        "9N-Ftr4LA0Q",
+        "isAaQddQJVk",
+        "nr1Yqjpdk3A"
       ],
-      "fetched_at": 1776255955.0813906
+      "fetched_at": 1778337028.7127075
     },
-    "validated": true
+    "validated": false
   },
   "PLPxVgePlKvTYGOwZ5lUb1VDDedHOiNX_l": {
     "tracks": {
       "749wy2P25Yj4lfvI2ujm6l": {
         "video_id": "mO5ugXyR15E",
-        "synced_at": 1776256393.340288
+        "synced_at": 1778336985.848958
       },
       "1c84gMKBOXcYFtidjboGF5": {
         "video_id": "79RwD08Bk9A",
-        "synced_at": 1776256395.7757294
+        "synced_at": 1778336986.4313104
       },
       "4HYWGaqCkshGWu6stZxlmd": {
         "video_id": "lFBbZPwz8Kc",
-        "synced_at": 1776256397.8499246
+        "synced_at": 1778336986.9863472
       },
       "5Hh09KHzQ9NRjRd6HIes5R": {
         "video_id": "auNPYDpvSI4",
-        "synced_at": 1776256399.7893574
+        "synced_at": 1778336987.3858747
       },
       "5mbEDRNFzwWFGSW3f7guHB": {
         "video_id": "VeajJuxWOYw",
-        "synced_at": 1776256401.6523023
+        "synced_at": 1778336987.8235838
       },
       "6tifCCTIVBLC2TmTquYG7G": {
         "video_id": "wTR-ScwmOXI",
-        "synced_at": 1776256403.5467336
+        "synced_at": 1778336988.3194876
       },
       "4VEEeQbtROwKArwA0FWXUp": {
         "video_id": "STFMeYWl7Mc",
-        "synced_at": 1776256405.4856298
+        "synced_at": 1778336988.626254
       },
       "1KOTY2OVnEgua9eY76WxvT": {
         "video_id": "C0n3gfHfqlU",
-        "synced_at": 1776256407.3355927
+        "synced_at": 1778336989.0460472
       },
       "0zKGqyfegTfDT2ZwKCiSW9": {
         "video_id": "y51tm2-IRUc",
-        "synced_at": 1776256409.2321348
+        "synced_at": 1778336989.4991884
       },
       "1aLfpxEUwwrB2zItNq7wrd": {
         "video_id": "JgWSulTzUeM",
-        "synced_at": 1776256411.2303083
+        "synced_at": 1778336989.9362924
+      },
+      "2oOUZQpxxcjlqOpgXSOgsi": {
+        "video_id": "6--joYwg-PU",
+        "synced_at": 1778336990.8964202
       },
       "7HcDzBNFEz1xIXDsPBIFRm": {
-        "video_id": "enAl9gOlM7M",
-        "synced_at": 1776256415.1106827
+        "video_id": "dvzgqqO1C6Y",
+        "synced_at": 1778336992.776045
       },
       "2pkIZ2AuuKwkkqasf5wXRo": {
         "video_id": "iRQZVQ0TWDY",
-        "synced_at": 1776256416.9856892
+        "synced_at": 1778336994.3424907
       },
       "6XmGXRgcSdCGG2u5gSmAJ9": {
         "video_id": "LyuVTzR4kpg",
-        "synced_at": 1776256419.0217204
+        "synced_at": 1778336994.968729
       },
       "6dyfsauAoa5qN0tj9JKamE": {
         "video_id": "KAX7gNrw4nA",
-        "synced_at": 1776256421.0505905
+        "synced_at": 1778336995.3525846
       },
       "6X6Ow0iioCrYQSK1QDHQbC": {
         "video_id": "Z0gnUAcgUzg",
-        "synced_at": 1776256423.4229603
+        "synced_at": 1778336995.8293972
       },
       "4NN7PBVKclppjgszynZ9K1": {
         "video_id": "r6sM4zWa5zY",
-        "synced_at": 1776256425.3184543
+        "synced_at": 1778336996.1693754
       },
       "5e6pJctxOaYcHFO9HdppmA": {
         "video_id": "0MgctYRFDqs",
-        "synced_at": 1776256427.16765
+        "synced_at": 1778336996.5621734
       },
       "7ml4MJBwtGpe5qAeSTgXT9": {
         "video_id": "XzmqbEOZOMY",
-        "synced_at": 1776256429.2475529
+        "synced_at": 1778336996.99923
       },
       "0K39LXoHYlmW0dsoRmu3gi": {
         "video_id": "dZkA-mqJzvY",
-        "synced_at": 1776256431.3688278
+        "synced_at": 1778336997.430163
       },
       "53fHc6lk6UeIBZkDILWTf4": {
         "video_id": "0c5kMZcdy3M",
-        "synced_at": 1776256433.2582636
+        "synced_at": 1778336997.7767608
       },
       "44nDnsrTHZTARi02Bxx1PM": {
         "video_id": "f5G63EAZSoA",
-        "synced_at": 1776256435.4713867
+        "synced_at": 1778336998.2547576
       },
       "21CgcYJLCorBJeiyxge0u5": {
         "video_id": "SGdNx7tAnW0",
-        "synced_at": 1776256437.378474
+        "synced_at": 1778336998.5581214
       },
       "4FaRigFF78Skkz1HYS1bU7": {
         "video_id": "uPn-2BrBIQU",
-        "synced_at": 1776256439.3193285
+        "synced_at": 1778336998.9452333
       },
       "7eQDQN6djUe1JVG0HkREpf": {
         "video_id": "rNA-ilhTjSA",
-        "synced_at": 1776256441.2821426
+        "synced_at": 1778336999.4584255
       },
       "0LQEuhl83IUtmVb64FHbHE": {
         "video_id": "ahj-sIxk2_I",
-        "synced_at": 1776256443.278063
+        "synced_at": 1778336999.8485167
       },
       "1ywN11WjsuTYnhSpDTwcHo": {
         "video_id": "K_kakHiR5Rg",
-        "synced_at": 1777281437.2387602
+        "synced_at": 1778337000.3488917
       },
       "3FWeUsQ9boDLysP9Tiq8Yr": {
         "video_id": "UCqz2ZnTw2U",
-        "synced_at": 1777281439.2339485
+        "synced_at": 1778337000.7665799
       },
       "0nCxDyB3YhPCDfuSFjK2OS": {
         "video_id": "RP87Ffy7ces",
-        "synced_at": 1777281441.2404363
+        "synced_at": 1778337001.2393095
       },
       "37AH4j7dYvHXD3HfNIBn8E": {
         "video_id": "yu1gUGobLy4",
-        "synced_at": 1777281443.338144
+        "synced_at": 1778337001.5829332
       },
       "1YdThuPFpQ4yjA6FGnTU5D": {
         "video_id": "wtTqRtOsFaU",
-        "synced_at": 1777281445.4316344
+        "synced_at": 1778337002.0489225
       },
       "1DdByft8QSr5sf8ZhdxcXE": {
         "video_id": "W7ZW_4dd1oQ",
-        "synced_at": 1777281447.3218248
+        "synced_at": 1778337002.6469924
       },
       "1FubT3w22RMHC3vreAL7cH": {
         "video_id": "Ar8LBssTzNw",
-        "synced_at": 1777281449.2454224
+        "synced_at": 1778337003.0696418
       },
       "4GosoD3HYfCfO67mhQK340": {
         "video_id": "YCtU89Cqhh0",
-        "synced_at": 1777281451.1669722
+        "synced_at": 1778337003.579288
       },
       "21kPwrdkfoolgxjiRQeGiH": {
         "video_id": "QLnl8ECZVhk",
-        "synced_at": 1777281453.1297915
+        "synced_at": 1778337003.951993
       },
       "6PrPWf02VxGUd2jJLs9z1M": {
         "video_id": "k3JKPGZUYB0",
-        "synced_at": 1777281455.2922888
+        "synced_at": 1778337004.489604
       },
       "79nRqde4cRssDzkJcu275a": {
         "video_id": "auNPYDpvSI4",
-        "synced_at": 1777281456.7301517
+        "synced_at": 1778337004.9887795
       },
       "19P0dOcggnCTCIu51gsp5F": {
         "video_id": "YFwqr_TTtKY",
-        "synced_at": 1777281457.6336493
+        "synced_at": 1778337005.5048094
       },
       "4qZCgcrKPt91QkF9OA1eww": {
         "video_id": "z8YFoNaDdco",
-        "synced_at": 1777281459.5974963
+        "synced_at": 1778337005.986708
       },
       "1bxtePWzYybaPiUZqvgQVf": {
         "video_id": "rwcjqaiWn-c",
-        "synced_at": 1777281461.4525058
+        "synced_at": 1778337006.5073307
       },
       "1oH6oeK8iKeRL9VTQY5w2r": {
         "video_id": "_ojUPXq1J8c",
-        "synced_at": 1777281463.357222
+        "synced_at": 1778337006.7584937
       },
       "1P0Cm0KIkvCEHc3D6DacVa": {
         "video_id": "yV_rLz8MoR0",
-        "synced_at": 1777281465.3224647
+        "synced_at": 1778337007.2087324
       },
       "1lpX6FDLiwlYP9fTW0X9ge": {
         "video_id": "kdq08dBRn90",
-        "synced_at": 1777281467.154299
+        "synced_at": 1778337007.6723497
       },
       "1vqUBYaNv53FJBoa6eLpi8": {
         "video_id": "8PGouFH4rug",
-        "synced_at": 1777281469.1058571
+        "synced_at": 1778337008.0964746
       },
       "34hp6zowrLUA4rSUcgm7hv": {
         "video_id": "JVdgdBEhHlU",
-        "synced_at": 1777281470.9994104
+        "synced_at": 1778337008.6333742
       },
       "36SGAVpiCmKVQOFiy79BrP": {
         "video_id": "RZ7PLNDbUNM",
-        "synced_at": 1777281472.9510944
+        "synced_at": 1778337009.0086277
       },
       "5u0Zh37K68RPZtYHld4g13": {
         "video_id": "PyR0DPVT460",
-        "synced_at": 1777281474.9119458
+        "synced_at": 1778337009.5457103
       },
       "248XBI9iRT4L6i0BXBTcyD": {
         "video_id": "G1lGA-H_-Zc",
-        "synced_at": 1777281476.824757
+        "synced_at": 1778337009.9879227
       },
       "5y81kMC5ViAIX7XnGLmizC": {
         "video_id": "V2awO59Zg1Q",
-        "synced_at": 1777281478.83425
+        "synced_at": 1778337010.4549954
       },
       "5fKil1HCUAk45V4ExBdMEV": {
         "video_id": "b9h7urD7Ldg",
-        "synced_at": 1777281480.6806917
+        "synced_at": 1778337010.9110272
       },
       "0bRzCl937W9PlTCknGfcW8": {
         "video_id": "vtKcOj7vS-g",
-        "synced_at": 1777281482.4249253
+        "synced_at": 1778337011.3535738
       },
       "1BETMljBYshwi4ChK6MeLx": {
         "video_id": "QOldR3QHfWQ",
-        "synced_at": 1777281484.3207529
+        "synced_at": 1778337012.0288854
       },
       "3jfOxtuBpjsdE36N2YoRc8": {
         "video_id": "s8RQJqtPKWA",
-        "synced_at": 1777281486.2376258
+        "synced_at": 1778337012.4418128
+      },
+      "0YP3OKyQv8tV1tK8gGWlWA": {
+        "video_id": "m4krcwa0cXg",
+        "synced_at": 1778337013.5241654
       }
     },
-    "last_processed": "3jfOxtuBpjsdE36N2YoRc8",
+    "last_processed": "0YP3OKyQv8tV1tK8gGWlWA",
     "playlist_cache": {
       "video_ids": [
         "mO5ugXyR15E",
@@ -8513,9 +8094,12 @@
         "b9h7urD7Ldg",
         "vtKcOj7vS-g",
         "QOldR3QHfWQ",
-        "s8RQJqtPKWA"
+        "s8RQJqtPKWA",
+        "6--joYwg-PU",
+        "dvzgqqO1C6Y",
+        "m4krcwa0cXg"
       ],
-      "fetched_at": 1777664598.7821088
+      "fetched_at": 1778337013.5241654
     },
     "validated": true
   },

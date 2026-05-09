@@ -6,3 +6,7 @@ __pycache__/
 yt_token.pickle
 yt_archive.log
 .cache
+playlists.json
+synced.json
+ytdlp_download.log
+ytdlp_settings.json
