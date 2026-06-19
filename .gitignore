@@ -1,6 +1,7 @@
 .idea/
 client_secret.json
 .env
+.env.local
 match_log.csv
 __pycache__/
 yt_token.pickle
@@ -10,3 +11,14 @@ playlists.json
 synced.json
 ytdlp_download.log
 ytdlp_settings.json
+
+# Next.js
+.next/
+out/
+node_modules/
+data/
+*.db
+
+# Legacy Python
+legacy/.env
+legacy/.cache/
