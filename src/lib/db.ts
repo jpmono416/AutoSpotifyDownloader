@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import type { OperationFailure, Platform, PlatformTokens, PlaylistMapping, SyncArchiveEntry } from "./types";
+import { decryptToken, encryptToken } from "./auth/token-crypto";
 
 // Next.js imports route modules while building Docker images, before Railway
 // injects runtime-only secrets. postgres.js connects lazily, so a non-routable
@@ -20,14 +21,21 @@ function playlistFromRow(row: PlaylistRow): PlaylistMapping {
 }
 
 export async function getPlatformTokens(userId: string, platform: Platform): Promise<PlatformTokens | null> {
-  const rows = await sql`select access_token, refresh_token, expires_at, scope from platform_tokens where user_id=${userId} and platform=${platform}`;
+  const rows = await sql`select access_token, refresh_token, token_ciphertext, token_iv, token_tag, key_version, expires_at, scope from platform_tokens where user_id=${userId} and platform=${platform}`;
   const row = rows[0];
-  return row ? { accessToken: row.access_token, refreshToken: row.refresh_token, expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : null, scope: row.scope } : null;
+  if (!row) return null;
+  if (row.token_ciphertext) {
+    const decoded = JSON.parse(decryptToken({ ciphertext:row.token_ciphertext, iv:row.token_iv, tag:row.token_tag, keyVersion:row.key_version })) as {accessToken:string;refreshToken:string|null};
+    return { ...decoded, expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : null, scope: row.scope };
+  }
+  return { accessToken: row.access_token, refreshToken: row.refresh_token, expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : null, scope: row.scope };
 }
 
 export async function savePlatformTokens(userId: string, platform: Platform, tokens: PlatformTokens): Promise<void> {
   const expiresAt = tokens.expiresAt ? new Date(tokens.expiresAt) : null;
-  await sql`insert into platform_tokens (user_id,platform,access_token,refresh_token,expires_at,scope) values (${userId},${platform},${tokens.accessToken},${tokens.refreshToken},${expiresAt},${tokens.scope}) on conflict (user_id,platform) do update set access_token=excluded.access_token,refresh_token=coalesce(excluded.refresh_token,platform_tokens.refresh_token),expires_at=excluded.expires_at,scope=excluded.scope,updated_at=now()`;
+  const current = await getPlatformTokens(userId, platform).catch(() => null);
+  const encrypted = encryptToken(JSON.stringify({accessToken:tokens.accessToken,refreshToken:tokens.refreshToken ?? current?.refreshToken ?? null}));
+  await sql`insert into platform_tokens (user_id,platform,access_token,refresh_token,token_ciphertext,token_iv,token_tag,key_version,expires_at,scope) values (${userId},${platform},null,null,${encrypted.ciphertext},${encrypted.iv},${encrypted.tag},${encrypted.keyVersion},${expiresAt},${tokens.scope}) on conflict (user_id,platform) do update set access_token=null,refresh_token=null,token_ciphertext=excluded.token_ciphertext,token_iv=excluded.token_iv,token_tag=excluded.token_tag,key_version=excluded.key_version,expires_at=excluded.expires_at,scope=excluded.scope,updated_at=now()`;
 }
 export async function deletePlatformTokens(userId: string, platform: Platform) { await sql`delete from platform_tokens where user_id=${userId} and platform=${platform}`; }
 export async function listPlaylistMappings(userId: string): Promise<PlaylistMapping[]> { return (await sql<PlaylistRow[]>`select * from playlists where user_id=${userId} order by lower(name)`).map(playlistFromRow); }
@@ -50,6 +58,9 @@ export async function clearOperationFailures(userId: string) { await sql`delete 
 export function normalizeArchiveEntry(entry: SyncArchiveEntry | null): SyncArchiveEntry { return entry ?? { tracks:{},lastProcessed:null,validated:false,playlistCache:{trackIds:[],fetchedAt:0} }; }
 export async function getSyncArchive(userId: string, archiveKey: string): Promise<SyncArchiveEntry> { const rows=await sql`select data from sync_archives where user_id=${userId} and archive_key=${archiveKey}`; return normalizeArchiveEntry((rows[0]?.data as SyncArchiveEntry|undefined) ?? null); }
 export async function saveSyncArchive(userId: string, archiveKey: string, entry: SyncArchiveEntry) { await sql`insert into sync_archives (user_id,archive_key,data) values (${userId},${archiveKey},${JSON.stringify(entry)}::jsonb) on conflict (user_id,archive_key) do update set data=excluded.data,updated_at=now()`; }
+
+export async function getCachedTrackMatch(sourcePlatform:Platform,sourceTrackId:string,targetPlatform:Platform):Promise<string|null>{const rows=await sql`select target_track_id from track_matches where source_platform=${sourcePlatform} and source_track_id=${sourceTrackId} and target_platform=${targetPlatform} and confirmation_state<>'rejected' order by (confirmation_state='confirmed') desc,last_verified_at desc nulls last limit 1`;return rows[0]?.target_track_id??null;}
+export async function saveTrackMatch(userId:string,source: {platform:Platform;id:string;artist:string;title:string;durationSec:number},targetPlatform:Platform,targetTrackId:string,confidence:number){const identity=`${source.platform}:${source.id}`;await sql`insert into track_matches(source_identity,source_platform,source_track_id,target_platform,target_track_id,normalized_artist,normalized_title,duration_seconds,confidence,created_by_user_id,last_verified_at) values(${identity},${source.platform},${source.id},${targetPlatform},${targetTrackId},${source.artist.trim().toLowerCase()},${source.title.trim().toLowerCase()},${source.durationSec},${confidence},${userId},now()) on conflict(source_identity,target_platform) do update set target_track_id=excluded.target_track_id,confidence=excluded.confidence,last_verified_at=now(),updated_at=now() where track_matches.confirmation_state<>'confirmed'`;}
 
 export async function saveOAuthState(userId: string, input: {state:string;platform:Platform;codeVerifier?:string;redirectAfter?:string}) { await sql`insert into oauth_states (state,user_id,platform,code_verifier,redirect_after) values (${input.state},${userId},${input.platform},${input.codeVerifier??null},${input.redirectAfter??"/"})`; }
 export async function consumeOAuthState(state: string): Promise<OAuthState|null> { const rows=await sql`delete from oauth_states where state=${state} and created_at > now()-interval '15 minutes' returning *`; const r=rows[0]; return r ? {state:r.state,userId:r.user_id,platform:r.platform,codeVerifier:r.code_verifier,redirectAfter:r.redirect_after,createdAt:new Date(r.created_at).getTime()} : null; }
