@@ -1,8 +1,10 @@
 import postgres from "postgres";
 import type { OperationFailure, Platform, PlatformTokens, PlaylistMapping, SyncArchiveEntry } from "./types";
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error("DATABASE_URL is required. Add a Supabase/Railway Postgres connection string.");
+// Next.js imports route modules while building Docker images, before Railway
+// injects runtime-only secrets. postgres.js connects lazily, so a non-routable
+// build placeholder is safe and real requests still use DATABASE_URL at runtime.
+const databaseUrl = process.env.DATABASE_URL ?? "postgresql://build:build@127.0.0.1:5432/build";
 
 const sql = postgres(databaseUrl, {
   max: 5, idle_timeout: 20, connect_timeout: 15,
