@@ -6,6 +6,8 @@ import {
   updatePlaylistMapping,
   updatePlaylistActivity,
   recordOperationFailure,
+  getCachedTrackMatch,
+  saveTrackMatch,
 } from "../db";
 import { getValidTokens } from "../auth/tokens";
 import { getSourceAdapter, getTargetAdapter } from "../platforms";
@@ -26,12 +28,13 @@ import {
 } from "../types";
 
 const SLEEP_MS = 1000;
+export interface SyncExecutionHooks { isCancelled?:()=>Promise<boolean>; onProgress?:(current:number,total:number,message:string)=>Promise<void>; onQuota?:(operation:"search"|"insert",units:number)=>Promise<void>; onCacheHit?:()=>Promise<void> }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function syncPlaylists(request: SyncRequest, userId: string): Promise<SyncJobResult> {
+export async function syncPlaylists(request: SyncRequest, userId: string, hooks:SyncExecutionHooks={}): Promise<SyncJobResult> {
   const logs: string[] = [];
   const log = (message: string) => logs.push(message);
 
@@ -88,6 +91,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
   const results: SyncJobResult["results"] = {};
 
   for (const mapping of mappings) {
+    if(await hooks.isCancelled?.())return {success:false,abortReason:"cancelled",results,logs};
     if (abortReason) break;
 
     const sourcePlaylistId = getPlatformIdFromMapping(mapping, sourcePlatform);
@@ -126,7 +130,8 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
         archive = normalizeArchiveEntry(await getSyncArchive(userId, finalArchiveKey));
       }
 
-      const tracks = await sourceAdapter.fetchPlaylistTracks(sourcePlaylistId, sourceTokens);
+      const fetchedTracks = await sourceAdapter.fetchPlaylistTracks(sourcePlaylistId, sourceTokens);
+      const tracks=Array.from(new Map(fetchedTracks.map(track=>[sourceTrackKey(sourcePlatform,track.id),track])).values());
       log(`Fetched ${tracks.length} tracks from ${sourcePlatform}.`);
 
       let startIndex = 0;
@@ -149,6 +154,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
       let skipped = 0;
 
       for (const track of tracks.slice(startIndex)) {
+        if(await hooks.isCancelled?.())return {success:false,abortReason:"cancelled",results,logs};
         if (abortReason) break;
 
         const trackKey = sourceTrackKey(sourcePlatform, track.id);
@@ -160,7 +166,10 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
         const query = `${track.artist} - ${track.title}`;
 
         try {
+          const cachedTargetId=await getCachedTrackMatch(sourcePlatform,track.id,targetPlatform);
+          if(cachedTargetId){await hooks.onCacheHit?.();if(existingIds.has(cachedTargetId)){archive.tracks[trackKey]={targetTrackId:cachedTargetId,syncedAt:Date.now()};archive.lastProcessed=trackKey;skipped++;continue;}await targetAdapter.addTrackToPlaylist(targetPlaylistId,cachedTargetId,targetTokens);if(targetPlatform==="youtube")await hooks.onQuota?.("insert",50);existingIds.add(cachedTargetId);archive.tracks[trackKey]={targetTrackId:cachedTargetId,syncedAt:Date.now()};archive.lastProcessed=trackKey;added++;continue;}
           const candidates = await targetAdapter.searchTracks(query, targetTokens, 5);
+          if(targetPlatform==="youtube")await hooks.onQuota?.("search",1);
           if (candidates.length === 0) {
             log(`⚠️  No ${targetPlatform} results for: ${query}`);
             await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: query, operation: "sync", explanation: `No results were found on ${targetPlatform}.` });
@@ -175,6 +184,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
           }
 
           const targetTrackId = match.candidate.id;
+          await saveTrackMatch(userId,track,targetPlatform,targetTrackId,match.score);
           if (existingIds.has(targetTrackId)) {
             log(` = ${track.artist} – ${track.title} (already in playlist)`);
             archive.tracks[trackKey] = {
@@ -191,6 +201,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
             targetTrackId,
             targetTokens
           );
+          if(targetPlatform==="youtube")await hooks.onQuota?.("insert",50);
 
           log(` + ${track.artist} – ${track.title} (score ${Math.round(match.score)})`);
           existingIds.add(targetTrackId);
@@ -201,6 +212,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string): Promi
           };
           archive.lastProcessed = trackKey;
           added++;
+          await hooks.onProgress?.(added+skipped,tracks.length,`Processing ${mapping.name}`);
           await sleep(SLEEP_MS);
         } catch (error) {
           if (error instanceof ApiRateLimitError) {

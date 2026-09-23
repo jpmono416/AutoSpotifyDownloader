@@ -7,11 +7,14 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "test": "node --test --import tsx tests/*.test.ts",
+    "worker": "tsx src/worker.ts",
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
     "@next/env": "^15.3.3",
+    "archiver": "^8.0.0",
     "fuzzball": "^2.2.2",
     "googleapis": "^148.0.0",
     "next": "^15.3.3",
@@ -23,6 +26,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.8",
+    "@types/archiver": "^8.0.0",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
