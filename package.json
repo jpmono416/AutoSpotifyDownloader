@@ -1,6 +1,7 @@
 {
   "name": "playlist-sync",
   "version": "1.0.0",
+  "packageManager": "pnpm@9.15.9",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
