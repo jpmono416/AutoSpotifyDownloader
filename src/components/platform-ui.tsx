@@ -111,8 +111,9 @@ export function AuthButton({ platform, connected, configured, onDisconnect }: Au
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm text-green-400">Connected</span>
+        <a href={`/api/auth/${platform}`} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:text-white">Reconnect</a>
         <button
-          onClick={() => onDisconnect(platform)}
+          onClick={() => { if(window.confirm(`Disconnect ${PLATFORM_LABELS[platform]}? Background jobs using it may fail.`)) onDisconnect(platform); }}
           className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:border-[var(--danger)] hover:text-red-300"
         >
           Disconnect

@@ -6,6 +6,7 @@ import { PLATFORM_LABELS, PLATFORMS } from "@/lib/types";
 import { AuthButton, PlatformBadge, PlatformIcon } from "./platform-ui";
 
 type ConnectionStatus = Record<Platform, boolean>;
+type JobSummary={id:string;type:"sync"|"download";status:"queued"|"running"|"paused"|"succeeded"|"failed"|"cancelled"|"expired";progressCurrent:number;progressTotal:number;progressMessage:string|null;errorMessage:string|null;attempts:number;maxAttempts:number;createdAt:number};
 
 interface DashboardProps {
   username: string;
@@ -76,32 +77,31 @@ export default function Dashboard({
   const [downloading, setDownloading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [jobs,setJobs]=useState<JobSummary[]>([]);
+  const [downloadsAllowed,setDownloadsAllowed]=useState(false);
+  const [activityMessage,setActivityMessage]=useState<string|null>(null);
+  const [artifactLinks,setArtifactLinks]=useState<Record<string,Array<{filename:string;url:string;sizeBytes:number}>>>({});
 
   const [newName, setNewName] = useState("");
-  const [newSpotifyUrl, setNewSpotifyUrl] = useState("");
-  const [newYoutubeUrl, setNewYoutubeUrl] = useState("");
-  const [newSoundcloudUrl, setNewSoundcloudUrl] = useState("");
-  const [newCoverSource, setNewCoverSource] = useState<Platform | "">("");
-
-  const providedPlatforms = PLATFORMS.filter((platform) => Boolean(platform === "spotify" ? newSpotifyUrl.trim() : platform === "youtube" ? newYoutubeUrl.trim() : newSoundcloudUrl.trim()));
-  useEffect(() => {
-    const available = PLATFORMS.filter((platform) => Boolean(platform === "spotify" ? newSpotifyUrl.trim() : platform === "youtube" ? newYoutubeUrl.trim() : newSoundcloudUrl.trim()));
-    if (available.length === 1) setNewCoverSource(available[0]);
-    else setNewCoverSource((current) => current && available.includes(current) ? current : "");
-  }, [newSpotifyUrl, newYoutubeUrl, newSoundcloudUrl]);
+  const [newUrl, setNewUrl] = useState("");
 
   const refresh = useCallback(async () => {
-    const [statusRes, playlistsRes, failuresRes] = await Promise.all([
+    const [statusRes, playlistsRes, failuresRes,jobsRes] = await Promise.all([
       fetch("/api/auth/status"),
       fetch("/api/playlists"),
       fetch("/api/failures"),
+      fetch("/api/jobs",{cache:"no-store"}),
     ]);
     const authStatus = await statusRes.json();
     setStatus(authStatus.connected);
     setConfigured(authStatus.configured);
+    setDownloadsAllowed(Boolean(authStatus.downloads?.enabled&&authStatus.downloads?.qaAllowed));
     setPlaylists(await playlistsRes.json());
     setFailures(await failuresRes.json());
+    if(jobsRes.ok)setJobs(await jobsRes.json());
   }, []);
+
+  useEffect(()=>{void refresh();const timer=window.setInterval(()=>void refresh(),4000);return()=>window.clearInterval(timer);},[refresh]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -143,21 +143,21 @@ export default function Dashboard({
           combinedLogs.push(`Skipped: ${PLATFORM_LABELS[target]} is not configured or connected.`);
           continue;
         }
-        const res = await fetch("/api/sync", {
+        const payload={sourcePlatform:requestedSource,targetPlatform:target,playlistIds:Array.from(selected),quotaConfirmed:false};
+        let res = await fetch("/api/jobs/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourcePlatform: requestedSource, targetPlatform: target, playlistIds: selected.size > 0 ? Array.from(selected) : undefined }),
+          body: JSON.stringify(payload),
         });
-        const responseText = await res.text();
-        let data: { logs?: string[]; error?: string };
-        try { data = JSON.parse(responseText) as { logs?: string[]; error?: string }; }
-        catch { throw new Error(`The sync server returned an invalid response (${res.status}). Restart the local server and try again.`); }
-        combinedLogs.push(...(data.logs ?? [data.error ?? "Unknown error"]));
+        let data=await res.json() as {error?:string;code?:string;quota?:{searchRequests:number;insertions:number;units:number;userRemaining:number;globalRemaining:number};job?:JobSummary};
+        if(res.status===409&&data.code==="quota_confirmation_required"&&data.quota){const approved=window.confirm(`Estimated YouTube cost: ${data.quota.searchRequests} searches and ${data.quota.insertions} insertions (${data.quota.units} units). Continue?`);if(!approved){combinedLogs.push("YouTube sync cancelled before queueing.");continue;}res=await fetch("/api/jobs/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,quotaConfirmed:true})});data=await res.json();}
+        if(!res.ok)throw new Error(data.error??`Could not queue sync (${res.status}).`);
+        combinedLogs.push(`Queued job ${data.job?.id}. It will continue if this browser closes.`);
       }
       setLogs(combinedLogs);
       await refresh();
     } catch (err) {
-      setLogs([`Error: ${err instanceof Error ? err.message : String(err)}`]);
+      setLogs([`Error: ${err instanceof Error ? err.message : String(err)}`]);setActivityMessage(err instanceof Error?err.message:String(err));
     } finally {
       setSyncing(false);
     }
@@ -167,43 +167,17 @@ export default function Dashboard({
     if (selected.size === 0) return;
     setDownloading(true);
     setLogTitle("Download Log");
-    setLogs(["Starting local downloader..."]);
+    setLogs(["Queueing QA export..."]);
     setLogsOpen(true);
     try {
-      const res = await fetch("/api/download", {
+      const res = await fetch("/api/jobs/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playlistIds: Array.from(selected) }),
       });
-      if (!res.ok || !res.body) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `Download failed (${res.status})`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let pending = "";
-      let firstLog = true;
-      while (true) {
-        const { done, value } = await reader.read();
-        pending += decoder.decode(value, { stream: !done });
-        const lines = pending.split("\n");
-        pending = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const event = JSON.parse(line) as { type: string; message?: string; success?: boolean; error?: string };
-          if (event.type === "log" && event.message) {
-            setLogs((previous) => firstLog ? [event.message!] : [...previous, event.message!]);
-            firstLog = false;
-          } else if (event.type === "done") {
-            const message = event.success ? "Download finished." : `Download failed: ${event.error ?? "See messages above."}`;
-            setLogs((previous) => [...previous, message]);
-          }
-        }
-        if (done) break;
-      }
+      const data=await res.json();if(!res.ok)throw new Error(data.error??`Export failed (${res.status})`);setLogs([`Queued QA export ${data.job.id}. It will continue in the Railway worker.`]);
     } catch (err) {
-      setLogs((previous) => [...previous, `Error: ${err instanceof Error ? err.message : String(err)}`]);
+      setLogs((previous) => [...previous, `Error: ${err instanceof Error ? err.message : String(err)}`]);setActivityMessage(err instanceof Error?err.message:String(err));
     } finally {
       setDownloading(false);
       await refresh();
@@ -219,10 +193,7 @@ export default function Dashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newName || undefined,
-          spotifyUrl: newSpotifyUrl || undefined,
-          youtubeUrl: newYoutubeUrl || undefined,
-          soundcloudUrl: newSoundcloudUrl || undefined,
-          coverSource: newCoverSource || undefined,
+          url: newUrl || undefined,
         }),
       });
       const data = await res.json();
@@ -231,10 +202,7 @@ export default function Dashboard({
         return;
       }
       setNewName("");
-      setNewSpotifyUrl("");
-      setNewYoutubeUrl("");
-      setNewSoundcloudUrl("");
-      setNewCoverSource("");
+      setNewUrl("");
       setShowAddForm(false);
       refresh();
     } catch (err) {
@@ -254,6 +222,9 @@ export default function Dashboard({
     refresh();
   };
 
+  const jobAction=async(job:JobSummary,action:"cancel"|"retry")=>{const response=await fetch(`/api/jobs/${job.id}/${action}`,{method:"POST"});const data=await response.json();if(!response.ok)setActivityMessage(data.error??`Could not ${action} job.`);await refresh();};
+  const loadArtifacts=async(jobId:string)=>{const response=await fetch(`/api/jobs/${jobId}/artifacts`,{cache:"no-store"});const data=await response.json();if(!response.ok){setActivityMessage(data.error??"Could not create download links.");return;}setArtifactLinks(previous=>({...previous,[jobId]:data}));};
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-8 flex items-start justify-between gap-4">
@@ -263,6 +234,9 @@ export default function Dashboard({
         </p></div>
         <div className="text-right"><p className="mb-2 text-sm text-[var(--muted)]">{username}</p><button className="text-sm hover:underline" onClick={async()=>{await fetch('/api/session/logout',{method:'POST'});window.location.href='/login';}}>Sign out</button></div>
       </header>
+
+      {(!PLATFORMS.every(platform=>status[platform])||playlists.length===0)&&<section className="mb-8 rounded-xl border border-blue-800/60 bg-blue-950/20 p-5" aria-labelledby="getting-started"><h2 id="getting-started" className="font-semibold">First-run checklist</h2><ol className="mt-3 grid gap-2 text-sm sm:grid-cols-3"><li>{Object.values(status).some(Boolean)?"✓":"1."} Connect a source provider</li><li>{playlists.length?"✓":"2."} Paste a playlist URL</li><li>3. Select it and queue a sync</li></ol></section>}
+      {activityMessage&&<div role="status" className="mb-6 flex items-start justify-between rounded-lg border border-amber-800/60 bg-amber-950/20 p-3 text-sm text-amber-200"><span>{activityMessage}</span><button onClick={()=>setActivityMessage(null)} aria-label="Dismiss message">×</button></div>}
 
       <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
         <button
@@ -291,6 +265,7 @@ export default function Dashboard({
               className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4"
             >
               <span className="flex items-center gap-2 font-medium"><PlatformIcon platform={platform} />{PLATFORM_LABELS[platform]}</span>
+              <p className="text-xs text-[var(--muted)]">{platform==="spotify"?"Read playlists and manage playlists you choose.":platform==="youtube"?"Read and manage your YouTube playlists.":"Read playlists and manage playlists where supported."}</p>
               <AuthButton
                 platform={platform}
                 connected={status[platform]}
@@ -322,13 +297,13 @@ export default function Dashboard({
                     </div>
                   )}
                 </div>
-                <button
+                {downloadsAllowed&&<button
                   onClick={handleDownload}
                   disabled={downloading}
                   className="rounded-lg border border-green-700 px-4 py-2 text-sm text-green-300 hover:bg-green-900/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {downloading ? "Downloading..." : `Download (${selected.size})`}
-                </button>
+                  {downloading ? "Queueing..." : `QA Export (${selected.size})`}
+                </button>}
                 <button
                   onClick={handleRemove}
                   className="rounded-lg border border-[var(--danger)] px-4 py-2 text-sm text-red-300 hover:bg-red-900/20"
@@ -345,10 +320,9 @@ export default function Dashboard({
             onSubmit={handleAddPlaylist}
             className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4"
           >
-            <p className="mb-3 text-sm text-[var(--muted)]">
-              Add at least one platform URL. Other platform IDs will be created automatically on first sync.
-            </p>
+            <p className="mb-3 text-sm text-[var(--muted)]">Paste one Spotify, YouTube, or SoundCloud playlist URL. The provider, name, and cover are detected automatically.</p>
             <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm sm:col-span-2"><span className="text-[var(--muted)]">Playlist URL</span><input type="url" required value={newUrl} onChange={event=>setNewUrl(event.target.value)} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--blue)]" placeholder="https://open.spotify.com/playlist/…" /></label>
               <label className="flex flex-col gap-1 text-sm sm:col-span-2">
                 <span className="text-[var(--muted)]">Name (optional — auto-detected from URL)</span>
                 <input
@@ -357,40 +331,6 @@ export default function Dashboard({
                   className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--blue)]"
                   placeholder="My Playlist"
                 />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--muted)]">Spotify URL</span>
-                <input
-                  value={newSpotifyUrl}
-                  onChange={(e) => setNewSpotifyUrl(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--blue)]"
-                  placeholder="https://open.spotify.com/playlist/..."
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--muted)]">YouTube URL</span>
-                <input
-                  value={newYoutubeUrl}
-                  onChange={(e) => setNewYoutubeUrl(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--blue)]"
-                  placeholder="https://youtube.com/playlist?list=..."
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                <span className="text-[var(--muted)]">SoundCloud URL</span>
-                <input
-                  value={newSoundcloudUrl}
-                  onChange={(e) => setNewSoundcloudUrl(e.target.value)}
-                  className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--blue)]"
-                  placeholder="https://soundcloud.com/user/sets/..."
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-                <span className="text-[var(--muted)]">Cover image source</span>
-                <select value={newCoverSource} onChange={(event) => setNewCoverSource(event.target.value as Platform | "")} disabled={providedPlatforms.length === 0} className="rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--blue)] disabled:opacity-50">
-                  <option value="">Select a linked platform</option>
-                  {providedPlatforms.map((platform) => <option key={platform} value={platform}>{PLATFORM_LABELS[platform]}</option>)}
-                </select>
               </label>
             </div>
             {formError && <p className="mt-2 text-sm text-red-400">{formError}</p>}
@@ -448,6 +388,11 @@ export default function Dashboard({
             </ul>
           </>
         )}
+      </section>
+
+      <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6" aria-labelledby="activity-heading">
+        <div className="mb-4 flex items-center justify-between"><div><h2 id="activity-heading" className="text-lg font-semibold">Job activity</h2><p className="mt-1 text-sm text-[var(--muted)]">Jobs continue on the worker after you close this page.</p></div><button onClick={()=>void refresh()} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm">Refresh</button></div>
+        {jobs.length===0?<p className="text-sm text-[var(--muted)]">No background jobs yet.</p>:<ul className="space-y-3">{jobs.map(job=>{const percent=job.progressTotal?Math.min(100,Math.round(job.progressCurrent/job.progressTotal*100)):0;return <li key={job.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-medium capitalize">{job.type}</span><span className={`rounded-full px-2 py-0.5 text-xs ${job.status==="succeeded"?"bg-green-900/50 text-green-300":job.status==="failed"?"bg-red-900/50 text-red-300":job.status==="paused"?"bg-amber-900/50 text-amber-200":"bg-blue-900/50 text-blue-200"}`}>{job.status}</span></div><p className="mt-1 text-sm text-[var(--muted)]">{job.progressMessage??job.errorMessage??"Waiting"}</p><p className="mt-1 text-xs text-[var(--muted)]">{new Date(job.createdAt).toLocaleString()} · attempt {job.attempts}/{job.maxAttempts}</p></div><div className="flex gap-2">{["queued","running","paused"].includes(job.status)&&<button onClick={()=>void jobAction(job,"cancel")} className="rounded border border-red-800 px-2 py-1 text-xs text-red-300">Cancel</button>}{job.status==="failed"&&job.attempts<job.maxAttempts&&<button onClick={()=>void jobAction(job,"retry")} className="rounded border border-blue-700 px-2 py-1 text-xs text-blue-300">Retry</button>}{job.type==="download"&&job.status==="succeeded"&&<button onClick={()=>void loadArtifacts(job.id)} className="rounded border border-green-700 px-2 py-1 text-xs text-green-300">Get links</button>}</div></div>{job.progressTotal>0&&<div className="mt-3"><div className="h-2 overflow-hidden rounded bg-black/30"><div className="h-full bg-[var(--blue)] transition-all" style={{width:`${percent}%`}} /></div><p className="mt-1 text-right text-xs text-[var(--muted)]">{job.progressCurrent}/{job.progressTotal}</p></div>}{artifactLinks[job.id]?.length>0&&<ul className="mt-3 space-y-1 border-t border-[var(--border)] pt-3">{artifactLinks[job.id].map(item=><li key={item.url}><a href={item.url} className="text-sm text-[var(--blue)] hover:underline" download>{item.filename} ({(item.sizeBytes/1_000_000).toFixed(1)} MB)</a></li>)}</ul>}</li>;})}</ul>}
       </section>
 
       <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface)]">

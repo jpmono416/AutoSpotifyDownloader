@@ -23,20 +23,29 @@ export async function POST(request: NextRequest) {
     const user = await requireUser();
     const body = (await request.json()) as {
       name?: string;
+      url?: string;
       spotifyUrl?: string;
       youtubeUrl?: string;
       soundcloudUrl?: string;
       coverSource?: Platform;
     };
 
-    const spotifyId = body.spotifyUrl
-      ? extractPlaylistId("spotify", body.spotifyUrl)
+    const pastedUrl=body.url?.trim();
+    const detectedPlatform:Platform|null=pastedUrl
+      ? (extractPlaylistId("spotify",pastedUrl)?"spotify":extractPlaylistId("youtube",pastedUrl)?"youtube":extractPlaylistId("soundcloud",pastedUrl)?"soundcloud":null)
       : null;
-    const youtubeId = body.youtubeUrl
-      ? extractPlaylistId("youtube", body.youtubeUrl)
+    if(pastedUrl&&!detectedPlatform)return NextResponse.json({error:"Paste a valid Spotify, YouTube, or SoundCloud playlist URL."},{status:400});
+    const spotifyUrl=body.spotifyUrl?.trim()??(detectedPlatform==="spotify"?pastedUrl:undefined);
+    const youtubeUrl=body.youtubeUrl?.trim()??(detectedPlatform==="youtube"?pastedUrl:undefined);
+    const soundcloudUrl=body.soundcloudUrl?.trim()??(detectedPlatform==="soundcloud"?pastedUrl:undefined);
+    const spotifyId = spotifyUrl
+      ? extractPlaylistId("spotify", spotifyUrl)
       : null;
-    const soundcloudId = body.soundcloudUrl
-      ? extractPlaylistId("soundcloud", body.soundcloudUrl)
+    const youtubeId = youtubeUrl
+      ? extractPlaylistId("youtube", youtubeUrl)
+      : null;
+    const soundcloudId = soundcloudUrl
+      ? extractPlaylistId("soundcloud", soundcloudUrl)
       : null;
 
     if (!spotifyId && !youtubeId && !soundcloudId) {
@@ -105,11 +114,11 @@ export async function POST(request: NextRequest) {
       id: uuidv4(),
       name,
       spotifyId,
-      spotifyUrl: body.spotifyUrl?.trim() ?? null,
+      spotifyUrl: spotifyUrl ?? null,
       youtubeId,
-      youtubeUrl: body.youtubeUrl?.trim() ?? null,
+      youtubeUrl: youtubeUrl ?? null,
       soundcloudId,
-      soundcloudUrl: body.soundcloudUrl?.trim() ?? null,
+      soundcloudUrl: soundcloudUrl ?? null,
       coverSource,
       coverUrl,
     };

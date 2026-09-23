@@ -1,0 +1,8 @@
+import { requireUser } from "@/lib/auth/session";
+import { createJob, downloadsEnabled, isQaUser } from "@/lib/jobs";
+import { getPlaylistMapping, sql } from "@/lib/db";
+export async function POST(request:Request){try{const user=await requireUser();if(!downloadsEnabled()||!(await isQaUser(user.id)))return Response.json({error:"QA downloads are not enabled for this account."},{status:403});
+  const body=await request.json() as {playlistIds?:string[]};const ids=Array.isArray(body.playlistIds)?[...new Set(body.playlistIds)]:[];if(!ids.length)return Response.json({error:"Select at least one playlist."},{status:400});const owned=await Promise.all(ids.map(id=>getPlaylistMapping(user.id,id)));if(owned.some(item=>!item))return Response.json({error:"One or more playlists were not found."},{status:404});if(owned.every(item=>!item?.youtubeId))return Response.json({error:"No selected playlist is linked to YouTube."},{status:400});
+  const storage=await sql`select coalesce(sum(size_bytes),0)::bigint as bytes from download_artifacts where deleted_at is null and expires_at>now()`;if(Number(storage[0].bytes)>=750_000_000)return Response.json({error:"QA export storage safety limit has been reached."},{status:507});
+  try{const job=await createJob(user.id,"download",{playlistIds:ids,requestedBy:user.id},ids.length);return Response.json({job},{status:202});}catch(error){if((error as {code?:string}).code==="23505")return Response.json({error:"Only one active download job is allowed per user."},{status:409});throw error;}
+}catch(error){if(error instanceof Error&&error.message==="UNAUTHENTICATED")return Response.json({error:"Unauthorized"},{status:401});return Response.json({error:error instanceof Error?error.message:"Could not queue export."},{status:500});}}

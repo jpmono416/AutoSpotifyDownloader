@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deletePlatformTokens } from "@/lib/db";
+import { deletePlatformTokens, getPlatformTokens } from "@/lib/db";
 import type { Platform } from "@/lib/types";
 import { PLATFORMS } from "@/lib/types";
 import { requireUser } from "@/lib/auth/session";
@@ -13,6 +13,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
   }
 
+  const tokens=await getPlatformTokens(user.id,platform);
+  let revoked=false;
+  if(tokens&&platform==="youtube"){
+    const response=await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(tokens.refreshToken??tokens.accessToken)}`,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"}}).catch(()=>null);
+    revoked=Boolean(response?.ok);
+  }
   await deletePlatformTokens(user.id, platform);
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, revoked });
 }

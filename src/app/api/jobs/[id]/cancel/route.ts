@@ -1,0 +1,2 @@
+import { requireUser } from "@/lib/auth/session";import { cancelJob } from "@/lib/jobs";
+export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){try{const user=await requireUser();return (await cancelJob(user.id,(await params).id))?Response.json({ok:true}):Response.json({error:"Job cannot be cancelled."},{status:409});}catch{return Response.json({error:"Unauthorized"},{status:401});}}
