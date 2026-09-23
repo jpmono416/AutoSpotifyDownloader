@@ -1,0 +1,4 @@
+import test from "node:test";import assert from "node:assert/strict";import {readFileSync} from "node:fs";import {join} from "node:path";
+const migration=readFileSync(join(process.cwd(),"supabase","migrations","002_background_jobs.sql"),"utf8");const queueCode=readFileSync(join(process.cwd(),"src","lib","jobs.ts"),"utf8");
+test("job queue has locking, ownership, transition, and artifact constraints",()=>{assert.match(queueCode,/for update skip locked/i);for(const phrase of ["validate_job_transition","jobs_one_active_download_per_user","user_id uuid not null","size_bytes bigint not null","part_number integer not null"])assert.match(migration,new RegExp(phrase,"i"));});
+test("token encryption and QA allowlist columns are migrated",()=>{assert.match(migration,/token_ciphertext/i);assert.match(migration,/key_version/i);assert.match(migration,/qa_download_allowlist/i);});

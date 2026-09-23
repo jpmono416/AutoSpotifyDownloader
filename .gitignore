@@ -18,6 +18,7 @@ out/
 node_modules/
 data/
 *.db
+*.tsbuildinfo
 
 # Legacy Python
 legacy/.env

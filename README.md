@@ -10,7 +10,9 @@ A web app for syncing playlists between **Spotify**, **YouTube**, and **SoundClo
 - Sync tracks in any direction (e.g. Spotify → YouTube, SoundCloud → Spotify, YouTube → SoundCloud)
 - Incremental sync with resume support (tracks already synced are skipped)
 - Auto-create target playlists when none exist (reuses existing playlist with matching title when possible)
-- Download selected YouTube playlists locally through the preserved legacy yt-dlp downloader
+- Durable Postgres-backed sync jobs that survive browser closes and worker restarts
+- Deny-by-default, allowlisted QA exports delivered as expiring private Storage links
+- YouTube quota estimates, usage ledger, and reusable track-match cache
 
 ## Quick Start
 
@@ -56,9 +58,9 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Usage
 
 1. **Connect** all platforms you want to sync between (Settings section on the home page).
-2. **Add playlists** — paste at least one platform URL per playlist. Other platform URLs can be filled in automatically on first sync.
+2. **Add playlists** — paste one platform URL. The provider, title, and cover are detected server-side. Other destinations are filled in on first sync.
 3. **Choose source and target** platforms, select playlists (or leave unselected to sync all).
-4. **Start Sync** — tracks are searched on the target platform and added when the fuzzy match score is ≥ 60.
+4. **Start Sync** — confirm the quota estimate and receive a durable job ID immediately. Follow progress in Job activity.
 
 ## Architecture
 
@@ -75,12 +77,14 @@ src/
 
 Each platform implements a common adapter interface: fetch tracks, search, ensure/create playlist, add track. The sync engine orchestrates any source → target pair.
 
-Users, sessions, platform OAuth tokens, playlists, sync archives, and operation failures are stored in Postgres. Passwords use salted scrypt hashes and sessions use hashed, HTTP-only cookie tokens.
+Users, sessions, encrypted platform OAuth tokens, playlists, sync archives, durable jobs/events, quota usage, match cache, and export artifacts are stored in Postgres. Passwords use salted scrypt hashes and sessions use hashed, HTTP-only cookie tokens. Provider tokens use AES-256-GCM with a versioned environment-managed key.
+
+The API service only validates and queues work. Run `pnpm worker` in a separate Railway service to atomically claim jobs with `FOR UPDATE SKIP LOCKED`, heartbeat, recover stale locks, and apply bounded retries. See [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Deployment
 
 - **Vercel + Supabase:** set all variables from `.env.example`, set `NEXT_PUBLIC_APP_URL` to the production URL, run the migration once, and register production OAuth callbacks. Sync works, but local downloads do not: Vercel cannot run a durable Python/yt-dlp job or retain downloaded files.
-- **Railway + Supabase/Railway Postgres:** recommended when Download is required. Install Python, yt-dlp, and FFmpeg and attach persistent storage for downloads.
+- **Railway API + worker + Supabase:** the supported production layout. Configure the worker service with `railway-worker.json`. QA downloads remain disabled unless both the environment gate and database allowlist permit them.
 - Never expose `DATABASE_URL` as a `NEXT_PUBLIC_` variable. Use a pooled database URL on Vercel.
 
 ## Legacy Python App
@@ -104,5 +108,7 @@ available as `py -3` on Windows or `python3` elsewhere.
 |---------|-------------|
 | `pnpm dev` | Start development server |
 | `pnpm build` | Production build |
-| `pnpm start` | Start production server |
+| `pnpm start` | Start the production API/web server |
+| `pnpm worker` | Start the durable background worker |
 | `pnpm db:migrate` | Create/update the Postgres schema |
+| `pnpm test` | Run unit and schema-contract tests |

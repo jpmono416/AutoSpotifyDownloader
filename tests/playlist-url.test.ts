@@ -1,0 +1,2 @@
+import test from "node:test";import assert from "node:assert/strict";import {extractPlaylistId} from "../src/lib/types";
+test("playlist provider IDs are detected from pasted URLs",()=>{assert.equal(extractPlaylistId("spotify","https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"),"37i9dQZF1DXcBWIGoYBM5M");assert.equal(extractPlaylistId("youtube","https://www.youtube.com/playlist?list=PLabc_123"),"PLabc_123");assert.equal(extractPlaylistId("soundcloud","https://soundcloud.com/user/sets/my-mix"),"my-mix");});
