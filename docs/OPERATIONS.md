@@ -4,7 +4,7 @@
 
 - Vercel serves the browser app and proxies `/api/*` to the Railway API.
 - The Railway API runs `pnpm start` from the repository Docker image.
-- A separate Railway worker service uses the same image and `railway-worker.json`, with `pnpm worker` as its start command. Keep the download-worker replica count at one.
+- A separate Railway worker service uses the same image and sets `PROCESS_TYPE=worker` (equivalent to the `pnpm worker` start command in `railway-worker.json`). Keep the download-worker replica count at one.
 - Supabase Postgres is the queue and metadata source of truth. The private `qa-downloads` Storage bucket is the delivery source of truth for exports.
 
 ## Release

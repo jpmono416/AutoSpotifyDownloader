@@ -20,4 +20,4 @@ COPY . .
 RUN pnpm build
 
 EXPOSE 8080
-CMD ["pnpm", "start"]
+CMD ["sh", "-c", "if [ \"$PROCESS_TYPE\" = \"worker\" ]; then exec pnpm worker; else exec pnpm start; fi"]
