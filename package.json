@@ -10,6 +10,7 @@
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
+    "@next/env": "^15.3.3",
     "fuzzball": "^2.2.2",
     "googleapis": "^148.0.0",
     "next": "^15.3.3",
