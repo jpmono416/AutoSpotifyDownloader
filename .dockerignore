@@ -1,0 +1,10 @@
+.git
+.next
+.vercel
+.env*
+node_modules
+data
+playlists.json
+synced.json
+client_secret*.json
+supabase/.temp

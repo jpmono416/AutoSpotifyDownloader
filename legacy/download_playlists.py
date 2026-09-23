@@ -25,7 +25,7 @@ DOWNLOAD_LOG_FILE = BASE_DIR / "ytdlp_download.log"
 YTDLP_SETTINGS_FILE = BASE_DIR / "ytdlp_settings.json"
 
 DEFAULT_YTDLP_SETTINGS: dict = {
-    "music_dir": None,
+    "music_dir": os.environ.get("MUSIC_DIR"),
     "ytdlp_path": "yt-dlp",
     "config_locations": [],
     "extra_args": [],
@@ -36,7 +36,7 @@ DEFAULT_YTDLP_SETTINGS: dict = {
     "max_sleep_interval": 15,
     "throttled_rate": "2M",
     # If set, use this --download-archive path instead of the repo's yt_archive.log
-    "download_archive": None,
+    "download_archive": os.environ.get("DOWNLOAD_ARCHIVE"),
     # If set, use this -o template as-is (e.g. %%(playlist_title)s paths); else music_dir / friendly_name / %%(title)s
     "output_template": None,
 }
