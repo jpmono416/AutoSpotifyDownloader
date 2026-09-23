@@ -3,12 +3,19 @@ import { randomBytes } from "crypto";
 import { saveOAuthState, cleanupExpiredOAuthStates } from "@/lib/db";
 import { buildSoundcloudAuthUrl, generatePkcePair } from "@/lib/platforms";
 import { getRedirectUri } from "@/lib/auth/tokens";
+import { isPlatformConfigured, platformConfigurationMessage } from "@/lib/platform-config";
+import { requireUser } from "@/lib/auth/session";
+import { getAppUrl } from "@/lib/auth/tokens";
 
 export async function GET() {
-  cleanupExpiredOAuthStates();
+  let user; try { user=await requireUser(); } catch { return NextResponse.redirect(new URL("/login", getAppUrl())); }
+  if (!isPlatformConfigured("soundcloud")) {
+    return NextResponse.json({ error: platformConfigurationMessage("soundcloud") }, { status: 503 });
+  }
+  await cleanupExpiredOAuthStates();
   const state = randomBytes(24).toString("hex");
   const { verifier, challenge } = generatePkcePair();
-  saveOAuthState({
+  await saveOAuthState(user.id, {
     state,
     platform: "soundcloud",
     codeVerifier: verifier,

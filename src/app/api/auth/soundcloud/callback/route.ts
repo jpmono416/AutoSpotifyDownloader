@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${getAppUrl()}/?error=missing_code`);
   }
 
-  const oauthState = consumeOAuthState(state);
+  const oauthState = await consumeOAuthState(state);
   if (!oauthState || oauthState.platform !== "soundcloud" || !oauthState.codeVerifier) {
     return NextResponse.redirect(`${getAppUrl()}/?error=invalid_state`);
   }
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       oauthState.codeVerifier,
       getRedirectUri("soundcloud")
     );
-    savePlatformTokens("soundcloud", tokens);
+    await savePlatformTokens(oauthState.userId, "soundcloud", tokens);
     return NextResponse.redirect(`${getAppUrl()}${oauthState.redirectAfter}?connected=soundcloud`);
   } catch (err) {
     const message = err instanceof Error ? err.message : "auth_failed";

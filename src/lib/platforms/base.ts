@@ -8,6 +8,7 @@ import type {
 export interface PlatformAdapter {
   platform: Platform;
   getPlaylistName(playlistId: string, tokens: PlatformTokens): Promise<string>;
+  getPlaylistCoverUrl(playlistId: string, tokens: PlatformTokens): Promise<string | null>;
   fetchPlaylistTracks(
     playlistId: string,
     tokens: PlatformTokens

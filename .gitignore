@@ -1,5 +1,5 @@
 .idea/
-client_secret.json
+client_secret*.json
 .env
 .env.local
 match_log.csv

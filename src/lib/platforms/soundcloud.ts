@@ -161,6 +161,11 @@ export const soundcloudAdapter: PlatformAdapter = {
     return data.title ?? "Untitled";
   },
 
+  async getPlaylistCoverUrl(playlistId, tokens) {
+    const data = await scFetch<{ artwork_url?: string | null }>(`/playlists/${playlistId}`, tokens);
+    return data.artwork_url?.replace("-large", "-t500x500") ?? null;
+  },
+
   async fetchPlaylistTracks(playlistId, tokens) {
     return fetchAllPlaylistTracks(playlistId, tokens);
   },

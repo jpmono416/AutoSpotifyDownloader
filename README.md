@@ -5,10 +5,12 @@ A web app for syncing playlists between **Spotify**, **YouTube**, and **SoundClo
 ## Features
 
 - Connect Spotify, YouTube, and SoundCloud via OAuth
+- Private username/password accounts with isolated data and platform connections
 - Configure playlists with URLs from one or more platforms
 - Sync tracks in any direction (e.g. Spotify → YouTube, SoundCloud → Spotify, YouTube → SoundCloud)
 - Incremental sync with resume support (tracks already synced are skipped)
 - Auto-create target playlists when none exist (reuses existing playlist with matching title when possible)
+- Download selected YouTube playlists locally through the preserved legacy yt-dlp downloader
 
 ## Quick Start
 
@@ -18,12 +20,17 @@ A web app for syncing playlists between **Spotify**, **YouTube**, and **SoundClo
 pnpm install
 ```
 
-### 2. Configure environment
+### 2. Create the database
+
+Create a Supabase project (or Railway Postgres database), copy its Postgres connection string to `DATABASE_URL`, then run `pnpm db:migrate`. For Supabase, use the transaction-pooler connection string for serverless deployments.
+
+### 3. Configure environment
 
 Copy `.env.example` to `.env.local` and fill in API credentials:
 
 | Variable | Where to get it |
 |----------|----------------|
+| `DATABASE_URL` | Supabase/Railway Postgres connection string |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | [Google Cloud Console](https://console.cloud.google.com/) — OAuth **Web application** |
 | `SOUNDCLOUD_CLIENT_ID` / `SOUNDCLOUD_CLIENT_SECRET` | [SoundCloud Apps](https://soundcloud.com/you/apps) |
@@ -37,14 +44,6 @@ Copy `.env.example` to `.env.local` and fill in API credentials:
 | SoundCloud | `http://localhost:3000/api/auth/soundcloud/callback` |
 
 Enable the **YouTube Data API v3** in Google Cloud Console.
-
-### 3. Migrate existing playlists (optional)
-
-If you have a legacy `playlists.json` from the Python app:
-
-```bash
-pnpm db:migrate
-```
 
 ### 4. Run the dev server
 
@@ -71,10 +70,18 @@ src/
     ├── platforms/        # Spotify, YouTube, SoundCloud adapters
     ├── sync/             # Sync engine + fuzzy matcher
     ├── auth/             # Token refresh helpers
-    └── db.ts             # SQLite persistence (playlists, tokens, sync archive)
+    └── db.ts             # User-scoped Postgres persistence
 ```
 
 Each platform implements a common adapter interface: fetch tracks, search, ensure/create playlist, add track. The sync engine orchestrates any source → target pair.
+
+Users, sessions, platform OAuth tokens, playlists, sync archives, and operation failures are stored in Postgres. Passwords use salted scrypt hashes and sessions use hashed, HTTP-only cookie tokens.
+
+## Deployment
+
+- **Vercel + Supabase:** set all variables from `.env.example`, set `NEXT_PUBLIC_APP_URL` to the production URL, run the migration once, and register production OAuth callbacks. Sync works, but local downloads do not: Vercel cannot run a durable Python/yt-dlp job or retain downloaded files.
+- **Railway + Supabase/Railway Postgres:** recommended when Download is required. Install Python, yt-dlp, and FFmpeg and attach persistent storage for downloads.
+- Never expose `DATABASE_URL` as a `NEXT_PUBLIC_` variable. Use a pooled database URL on Vercel.
 
 ## Legacy Python App
 
@@ -84,10 +91,12 @@ The original Tkinter desktop app and yt-dlp download scripts are preserved in `l
 - `legacy/download_playlists.py` — yt-dlp audio download (not included in web app v1)
 - `legacy/app.py` — desktop GUI
 
-## Out of Scope (v1)
-
-- yt-dlp audio downloading from the web app
-- Multi-user authentication
+The web dashboard's Download button starts only `legacy/download_selected.py`, not the
+legacy GUI. It reuses `legacy/download_playlists.py` and its optional
+`legacy/ytdlp_settings.json`, including the configured output directory, yt-dlp path,
+extra arguments, and download archive. Python, yt-dlp, and FFmpeg must be installed on
+the same computer that runs the Next.js server. Set `PYTHON_PATH` if Python is not
+available as `py -3` on Windows or `python3` elsewhere.
 
 ## Scripts
 
@@ -96,4 +105,4 @@ The original Tkinter desktop app and yt-dlp download scripts are preserved in `l
 | `pnpm dev` | Start development server |
 | `pnpm build` | Production build |
 | `pnpm start` | Start production server |
-| `pnpm db:migrate` | Import `playlists.json` into SQLite |
+| `pnpm db:migrate` | Create/update the Postgres schema |

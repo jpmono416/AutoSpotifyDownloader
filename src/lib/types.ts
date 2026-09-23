@@ -28,10 +28,27 @@ export interface PlaylistMapping {
   id: string;
   name: string;
   spotifyId: string | null;
+  spotifyUrl: string | null;
   youtubeId: string | null;
+  youtubeUrl: string | null;
   soundcloudId: string | null;
+  soundcloudUrl: string | null;
+  coverSource: Platform | null;
+  coverUrl: string | null;
+  lastSyncedAt: number | null;
+  lastDownloadedAt: number | null;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface OperationFailure {
+  id: string;
+  playlistId: string;
+  playlistName: string;
+  trackLabel: string;
+  operation: "sync" | "download";
+  explanation: string;
+  createdAt: number;
 }
 
 export interface SyncArchiveEntry {
@@ -150,9 +167,11 @@ export function setPlatformIdOnMapping(
   switch (platform) {
     case "spotify":
       updated.spotifyId = id;
+      updated.spotifyUrl = `https://open.spotify.com/playlist/${id}`;
       break;
     case "youtube":
       updated.youtubeId = id;
+      updated.youtubeUrl = `https://www.youtube.com/playlist?list=${id}`;
       break;
     case "soundcloud":
       updated.soundcloudId = id;

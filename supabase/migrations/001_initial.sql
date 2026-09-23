@@ -1,0 +1,18 @@
+create extension if not exists pgcrypto;
+create table if not exists users (id uuid primary key default gen_random_uuid(),username text not null,password_hash text not null,created_at timestamptz not null default now(),constraint users_username_format check (username ~ '^[A-Za-z0-9_.-]{3,32}$'));
+create unique index if not exists users_username_lower_key on users(lower(username));
+create table if not exists sessions (id uuid primary key default gen_random_uuid(),user_id uuid not null references users(id) on delete cascade,token_hash text not null unique,expires_at timestamptz not null,created_at timestamptz not null default now());
+create index if not exists sessions_user_id_idx on sessions(user_id);
+create table if not exists playlists (id uuid primary key default gen_random_uuid(),user_id uuid not null references users(id) on delete cascade,name text not null,spotify_id text,spotify_url text,youtube_id text,youtube_url text,soundcloud_id text,soundcloud_url text,cover_source text check(cover_source in ('spotify','youtube','soundcloud')),cover_url text,last_synced_at timestamptz,last_downloaded_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now());
+alter table playlists add column if not exists spotify_url text;
+alter table playlists add column if not exists youtube_url text;
+alter table playlists add column if not exists soundcloud_url text;
+create unique index if not exists playlists_user_name_lower_key on playlists(user_id,lower(name));
+create unique index if not exists playlists_user_spotify_key on playlists(user_id,spotify_id) where spotify_id is not null;
+create unique index if not exists playlists_user_youtube_key on playlists(user_id,youtube_id) where youtube_id is not null;
+create unique index if not exists playlists_user_soundcloud_key on playlists(user_id,soundcloud_id) where soundcloud_id is not null;
+create table if not exists platform_tokens (user_id uuid not null references users(id) on delete cascade,platform text not null check(platform in ('spotify','youtube','soundcloud')),access_token text not null,refresh_token text,expires_at timestamptz,scope text,updated_at timestamptz not null default now(),primary key(user_id,platform));
+create table if not exists sync_archives (user_id uuid not null references users(id) on delete cascade,archive_key text not null,data jsonb not null default '{}'::jsonb,updated_at timestamptz not null default now(),primary key(user_id,archive_key));
+create table if not exists oauth_states (state text primary key,user_id uuid not null references users(id) on delete cascade,platform text not null check(platform in ('spotify','youtube','soundcloud')),code_verifier text,redirect_after text not null default '/',created_at timestamptz not null default now());
+create table if not exists operation_failures (id uuid primary key default gen_random_uuid(),user_id uuid not null references users(id) on delete cascade,playlist_id uuid not null references playlists(id) on delete cascade,playlist_name text not null,track_label text not null,operation text not null check(operation in ('sync','download')),explanation text not null,created_at timestamptz not null default now());
+create index if not exists operation_failures_user_created_idx on operation_failures(user_id,created_at desc);

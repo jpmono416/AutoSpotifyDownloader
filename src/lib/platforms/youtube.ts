@@ -60,6 +60,17 @@ export const youtubeAdapter: PlatformAdapter = {
     }
   },
 
+  async getPlaylistCoverUrl(playlistId, tokens) {
+    const yt = getYoutubeClient(tokens);
+    try {
+      const resp = await yt.playlists.list({ part: ["snippet"], id: [playlistId] });
+      const thumbnails = resp.data.items?.[0]?.snippet?.thumbnails;
+      return thumbnails?.maxres?.url ?? thumbnails?.standard?.url ?? thumbnails?.high?.url ?? thumbnails?.medium?.url ?? thumbnails?.default?.url ?? null;
+    } catch (error) {
+      handleYoutubeError(error);
+    }
+  },
+
   async fetchPlaylistTracks(playlistId, tokens) {
     const yt = getYoutubeClient(tokens);
     const tracks: NormalizedTrack[] = [];

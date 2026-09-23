@@ -17,14 +17,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${getAppUrl()}/?error=missing_code`);
   }
 
-  const oauthState = consumeOAuthState(state);
+  const oauthState = await consumeOAuthState(state);
   if (!oauthState || oauthState.platform !== "youtube") {
     return NextResponse.redirect(`${getAppUrl()}/?error=invalid_state`);
   }
 
   try {
     const tokens = await exchangeGoogleCode(code);
-    savePlatformTokens("youtube", tokens);
+    await savePlatformTokens(oauthState.userId, "youtube", tokens);
     return NextResponse.redirect(`${getAppUrl()}${oauthState.redirectAfter}?connected=youtube`);
   } catch (err) {
     const message = err instanceof Error ? err.message : "auth_failed";

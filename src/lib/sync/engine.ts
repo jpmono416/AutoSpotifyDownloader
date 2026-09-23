@@ -4,11 +4,14 @@ import {
   normalizeArchiveEntry,
   saveSyncArchive,
   updatePlaylistMapping,
+  updatePlaylistActivity,
+  recordOperationFailure,
 } from "../db";
 import { getValidTokens } from "../auth/tokens";
 import { getSourceAdapter, getTargetAdapter } from "../platforms";
 import { pickBestMatch } from "./matcher";
 import { ApiRateLimitError } from "../platforms/base";
+import { isPlatformConfigured, platformConfigurationMessage } from "../platform-config";
 import type {
   Platform,
   PlaylistMapping,
@@ -28,7 +31,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult> {
+export async function syncPlaylists(request: SyncRequest, userId: string): Promise<SyncJobResult> {
   const logs: string[] = [];
   const log = (message: string) => logs.push(message);
 
@@ -43,8 +46,8 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
     };
   }
 
-  const sourceTokens = await getValidTokens(sourcePlatform);
-  const targetTokens = await getValidTokens(targetPlatform);
+  const sourceTokens = await getValidTokens(userId, sourcePlatform);
+  const targetTokens = await getValidTokens(userId, targetPlatform);
 
   if (!sourceTokens) {
     return {
@@ -67,7 +70,7 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
   const sourceAdapter = getSourceAdapter(sourcePlatform);
   const targetAdapter = getTargetAdapter(targetPlatform);
 
-  let mappings = listPlaylistMappings();
+  let mappings = await listPlaylistMappings(userId);
   if (playlistIds?.length) {
     mappings = mappings.filter((m) => playlistIds.includes(m.id));
   }
@@ -90,6 +93,7 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
     const sourcePlaylistId = getPlatformIdFromMapping(mapping, sourcePlatform);
     if (!sourcePlaylistId) {
       log(`⚠️  Skipping "${mapping.name}" — no ${sourcePlatform} playlist ID configured.`);
+      await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: "Playlist sync", operation: "sync", explanation: `No ${sourcePlatform} playlist is linked as the selected source.` });
       results[mapping.name] = { success: false, added: 0, skipped: 0, error: "missing_source_id" };
       continue;
     }
@@ -100,7 +104,7 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
     const hadExplicitTargetId = !!targetPlaylistId;
 
     const archiveKey = syncArchiveKey(sourcePlatform, targetPlatform, targetPlaylistId ?? mapping.id);
-    let archive = normalizeArchiveEntry(getSyncArchive(archiveKey));
+    let archive = normalizeArchiveEntry(await getSyncArchive(userId, archiveKey));
 
     try {
       const ensured = await targetAdapter.ensurePlaylist(
@@ -114,12 +118,12 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
 
       if (targetPlaylistId !== getPlatformIdFromMapping(mapping, targetPlatform)) {
         const updated = setPlatformIdOnMapping(mapping, targetPlatform, targetPlaylistId);
-        updatePlaylistMapping(updated);
+        await updatePlaylistMapping(userId, updated);
       }
 
       const finalArchiveKey = syncArchiveKey(sourcePlatform, targetPlatform, targetPlaylistId);
       if (finalArchiveKey !== archiveKey) {
-        archive = normalizeArchiveEntry(getSyncArchive(finalArchiveKey));
+        archive = normalizeArchiveEntry(await getSyncArchive(userId, finalArchiveKey));
       }
 
       const tracks = await sourceAdapter.fetchPlaylistTracks(sourcePlaylistId, sourceTokens);
@@ -159,12 +163,14 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
           const candidates = await targetAdapter.searchTracks(query, targetTokens, 5);
           if (candidates.length === 0) {
             log(`⚠️  No ${targetPlatform} results for: ${query}`);
+            await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: query, operation: "sync", explanation: `No results were found on ${targetPlatform}.` });
             continue;
           }
 
           const match = pickBestMatch(track, candidates, 60);
           if (!match) {
             log(`⚠️  No good match for: ${query}`);
+            await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: query, operation: "sync", explanation: `Results were found on ${targetPlatform}, but none matched closely enough.` });
             continue;
           }
 
@@ -200,23 +206,28 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
           if (error instanceof ApiRateLimitError) {
             abortReason = error.reason;
             log(`Stopped due to API limit: ${error.reason}`);
+            await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: query, operation: "sync", explanation: `The ${targetPlatform} API rate limit was reached (${error.reason}). Try again later.` });
             break;
           }
           log(`⚠️  Could not process ${track.title}: ${error instanceof Error ? error.message : String(error)}`);
+          await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: query, operation: "sync", explanation: error instanceof Error ? error.message : String(error) });
           archive.validated = false;
         }
       }
 
-      saveSyncArchive(finalArchiveKey, archive);
+      await saveSyncArchive(userId, finalArchiveKey, archive);
       log(`Done. Added ${added} new tracks, skipped ${skipped}.`);
       results[mapping.name] = { success: true, added, skipped };
+      await updatePlaylistActivity(userId, mapping.id, "sync");
     } catch (error) {
       if (error instanceof ApiRateLimitError) {
         abortReason = error.reason;
+        await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: "Playlist sync", operation: "sync", explanation: `A platform API rate limit was reached (${error.reason}). Try again later.` });
         results[mapping.name] = { success: false, added: 0, skipped: 0, error: error.reason };
       } else {
         const message = error instanceof Error ? error.message : String(error);
         log(`⚠️  Error syncing "${mapping.name}": ${message}`);
+        await recordOperationFailure(userId, { playlistId: mapping.id, playlistName: mapping.name, trackLabel: "Playlist sync", operation: "sync", explanation: message });
         results[mapping.name] = { success: false, added: 0, skipped: 0, error: message };
       }
     }
@@ -226,11 +237,22 @@ export async function syncPlaylists(request: SyncRequest): Promise<SyncJobResult
   return { success: abortReason === null, abortReason, results, logs };
 }
 
+export async function fetchPlaylistCover(platform: Platform, playlistId: string, userId: string): Promise<string | null> {
+  if (!isPlatformConfigured(platform)) throw new Error(platformConfigurationMessage(platform));
+  const tokens = await getValidTokens(userId, platform);
+  if (!tokens) throw new Error(`Not connected to ${platform}`);
+  return getSourceAdapter(platform).getPlaylistCoverUrl(playlistId, tokens);
+}
+
 export async function fetchPlaylistName(
   platform: Platform,
-  playlistId: string
+  playlistId: string,
+  userId: string
 ): Promise<string> {
-  const tokens = await getValidTokens(platform);
+  if (!isPlatformConfigured(platform)) {
+    throw new Error(platformConfigurationMessage(platform));
+  }
+  const tokens = await getValidTokens(userId, platform);
   if (!tokens) throw new Error(`Not connected to ${platform}`);
   const adapter = getSourceAdapter(platform);
   return adapter.getPlaylistName(playlistId, tokens);

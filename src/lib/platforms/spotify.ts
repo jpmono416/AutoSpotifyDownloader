@@ -53,6 +53,13 @@ export const spotifyAdapter: PlatformAdapter = {
     return data.name;
   },
 
+  async getPlaylistCoverUrl(playlistId, tokens) {
+    const data = await spotifyFetch<{ images?: Array<{ url?: string }> }>(
+      `/playlists/${playlistId}?fields=images`, tokens
+    );
+    return data.images?.[0]?.url ?? null;
+  },
+
   async fetchPlaylistTracks(playlistId, tokens) {
     const tracks: NormalizedTrack[] = [];
     let path: string | null =

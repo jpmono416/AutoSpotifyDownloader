@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncPlaylists } from "@/lib/sync/engine";
 import type { Platform, SyncRequest } from "@/lib/types";
 import { PLATFORMS } from "@/lib/types";
+import { isPlatformConfigured, platformConfigurationMessage } from "@/lib/platform-config";
+import { requireUser } from "@/lib/auth/session";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser();
     const body = (await request.json()) as Partial<SyncRequest>;
 
     if (!body.sourcePlatform || !body.targetPlatform) {
@@ -21,11 +24,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid platform." }, { status: 400 });
     }
 
+    const source = body.sourcePlatform as Platform;
+    const target = body.targetPlatform as Platform;
+    for (const platform of [source, target]) {
+      if (!isPlatformConfigured(platform)) {
+        return NextResponse.json(
+          { error: platformConfigurationMessage(platform), logs: [platformConfigurationMessage(platform)] },
+          { status: 503 }
+        );
+      }
+    }
+
     const result = await syncPlaylists({
-      sourcePlatform: body.sourcePlatform as Platform,
-      targetPlatform: body.targetPlatform as Platform,
+      sourcePlatform: source,
+      targetPlatform: target,
       playlistIds: body.playlistIds,
-    });
+    }, user.id);
 
     return NextResponse.json(result);
   } catch (error) {
