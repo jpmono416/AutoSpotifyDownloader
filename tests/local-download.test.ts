@@ -34,3 +34,15 @@ test("existing archive prevents duplicate local download; only new completed IDs
     process.env.APP_MODE="production";await assert.rejects(runLocalDownloads(config,[],hooks),/trusted local mode/);
   } finally {process.chdir(cwd);for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);assert.ok(resolve(dir).startsWith(resolve(tmpdir())));await rm(dir,{recursive:true,force:true});}
 });
+
+test("cancellation terminates the local downloader process tree",async()=>{
+  const dir=await mkdtemp(join(tmpdir(),"asd-cancel-")),cwd=process.cwd(),env={...process.env};
+  try {
+    process.chdir(dir);Object.assign(process.env,{APP_MODE:"local",LOCAL_DATABASE_URL:"postgresql://test:test@127.0.0.1/test"});
+    const fake=join(dir,"wait.cjs");await writeFile(fake,"setInterval(()=>{},1000);");
+    const config:LocalDownloadConfig={musicDir:dir,configs:[],archive:join(dir,"archive.log"),seedArchives:[],python:process.execPath,executable:process.execPath,extraArgs:[fake],format:"flac",quality:"0",settingsSource:"test"};
+    let calls=0;const started=Date.now();
+    await runLocalDownloads(config,[{youtubeId:"PL"+"C".repeat(32),name:"Test"}],{cancelled:async()=>++calls>1,progress:async()=>{},history:[]});
+    assert.ok(Date.now()-started<5000,"downloader must stop promptly after cancellation");
+  } finally {process.chdir(cwd);for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);assert.ok(resolve(dir).startsWith(resolve(tmpdir())));await rm(dir,{recursive:true,force:true});}
+});

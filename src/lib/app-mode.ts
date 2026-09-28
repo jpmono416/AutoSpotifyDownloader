@@ -38,7 +38,9 @@ export function trustedLocalRequest(headers: Pick<Headers, "get">, env: Environm
   if (appMode(env) !== "local") return false;
   const expected = env.LOCAL_REQUEST_SECRET;
   const actual = headers.get("x-asd-local-proof");
-  if (!expected || !actual || expected.length !== actual.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(actual))) return false;
+  if (!expected || !actual) return false;
+  const expectedBytes=Buffer.from(expected),actualBytes=Buffer.from(actual);
+  if(expectedBytes.length!==actualBytes.length || !timingSafeEqual(expectedBytes,actualBytes)) return false;
   if (!loopbackUrl(`http://${headers.get("host") ?? ""}`)) return false;
   const origin = headers.get("origin");
   if (origin && origin !== `http://${headers.get("host")}`) return false;

@@ -10,3 +10,4 @@ test("remote app URL and backend proxy reject local mode",()=>{assert.throws(()=
 test("trusted local proof permits cookie-free browser requests",()=>assert.equal(trustedLocalRequest(headers(),local),true));
 test("remote, forged, cross-origin and forwarded requests cannot bypass",()=>{for(const h of [headers({host:"example.com"}),headers({"x-asd-local-proof":"b".repeat(64)}),headers({origin:"https://evil.test"}),headers({"x-forwarded-for":"127.0.0.1"}),new Headers({host:"localhost:3000"})]) assert.equal(trustedLocalRequest(h,local),false);assert.equal(loopbackAddress("192.168.1.5"),false);});
 test("proof never permits production authentication bypass",()=>assert.equal(trustedLocalRequest(headers(),{APP_MODE:"production",LOCAL_REQUEST_SECRET:local.LOCAL_REQUEST_SECRET}),false));
+test("malformed multibyte proof fails closed without throwing",()=>assert.equal(trustedLocalRequest(headers({"x-asd-local-proof":"é".repeat(64)}),local),false));
