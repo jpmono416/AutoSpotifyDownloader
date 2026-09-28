@@ -14,6 +14,8 @@ test("local config validates missing paths and discovers explicit config without
     await assert.rejects(localDownloadConfig(),/configured yt-dlp config is missing/);
     const configFile=join(dir,"config");await writeFile(configFile,"--audio-format flac\n");process.env.LOCAL_YTDLP_CONFIG=configFile;
     const config=await localDownloadConfig();assert.deepEqual(config.configs,[configFile]);assert.equal(config.musicDir,dir);assert.equal(await readFile(configFile,"utf8"),"--audio-format flac\n");
+    await writeFile(join(dir,"ytdlp_settings.json"),JSON.stringify({audio_format:"mp3"}));
+    assert.equal((await localDownloadConfig()).settingsSource,"ytdlp_settings.json compatibility");
     process.env.LOCAL_YTDLP_ARCHIVE=join(dir,"wrong-archive");await assert.rejects(localDownloadConfig(),/LOCAL_YTDLP_ARCHIVE/);
   } finally {process.chdir(cwd);for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);assert.ok(resolve(dir).startsWith(resolve(tmpdir())));await rm(dir,{recursive:true,force:true});}
 });
