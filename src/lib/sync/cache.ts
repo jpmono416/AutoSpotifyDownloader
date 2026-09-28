@@ -1,5 +1,9 @@
 import type { NormalizedTrack } from "../types";
 export interface CachedMatch { id: string; targetTrackId: string; lastVerifiedAt: number | null; confidence: number; confirmationState: string }
+export function reusableSourceIdentity(track: NormalizedTrack): boolean {
+  if(track.publicIdentity===false) return false;
+  return track.platform==="spotify" ? /^[A-Za-z0-9]{22}$/.test(track.id) : track.publicIdentity===true;
+}
 export function normalizedIdentity(track: NormalizedTrack): string | null {
   if (!track.artist.trim() || !track.title.trim() || !Number.isFinite(track.durationSec) || track.durationSec <= 0) return null;
   const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();

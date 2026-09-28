@@ -14,6 +14,7 @@ export interface NormalizedTrack {
   artist: string;
   durationSec: number;
   isrc?: string;
+  publicIdentity?: boolean;
   platform: Platform;
 }
 

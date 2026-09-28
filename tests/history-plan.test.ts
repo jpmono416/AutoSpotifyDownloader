@@ -1,0 +1,15 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { buildHistoryPlan, parseLegacyJson } from "../src/lib/history-plan";
+import { archiveLines } from "../src/lib/local-download";
+const source="A".repeat(22), destination="PL"+"B".repeat(32), target="C".repeat(11);
+const playlists={Example:{spotify_id:"D".repeat(22),youtube_id:destination}};
+const synced={[destination]:{tracks:{[source]:{video_id:target,synced_at:1700000000}},last_processed:source,validated:true,playlist_cache:{video_ids:[target],fetched_at:1}}};
+test("real legacy format preserves provider links, proven sync history and markers",()=>{const p=buildHistoryPlan(playlists,synced);assert.equal(p.counts.playlists,1);assert.equal(p.counts.globalMappings,1);assert.equal(p.counts.syncRecords,1);assert.equal(p.archives[`spotify->youtube:${destination}`].lastProcessed,`spotify:${source}`);assert.equal(p.archives[`spotify->youtube:${destination}`].validated,false);assert.match(p.playlists[0].urls.spotify!,/^https:/);});
+test("plan and fingerprint are deterministic on repeated inspection",()=>assert.deepEqual(buildHistoryPlan(playlists,synced),buildHistoryPlan(playlists,synced)));
+test("orphan destination contributes mappings but no playlist completion",()=>{const p=buildHistoryPlan({},synced);assert.equal(p.counts.globalMappings,1);assert.equal(p.counts.syncRecords,0);assert.equal(p.counts.orphanArchives,1);});
+test("conflicting videos for source are excluded from global cache",()=>{const p=buildHistoryPlan(playlists,{...synced,["PL"+"E".repeat(32)]:{tracks:{[source]:{video_id:"F".repeat(11),synced_at:1700000000}}}});assert.equal(p.matches.length,0);assert.equal(p.counts.conflicts,1);assert.equal(p.counts.syncRecords,1);});
+test("duplicate playlists and invalid IDs are reported",()=>{const p=buildHistoryPlan({...playlists,Duplicate:playlists.Example,Bad:{spotify_id:"wrong"}},{});assert.equal(p.playlists.length,1);assert.equal(p.counts.conflicts,1);assert.equal(p.counts.invalidProviderIds,1);});
+test("list-only archives and missing proof timestamps are ambiguous",()=>{assert.equal(buildHistoryPlan(playlists,{[destination]:[source]}).counts.syncRecords,0);assert.equal(buildHistoryPlan(playlists,{[destination]:{tracks:{[source]:{video_id:target}}}}).counts.syncRecords,0);});
+test("malformed roots and JSON are actionable; unknown fields remain untouched",()=>{assert.throws(()=>parseLegacyJson('{bad','synced.json'),/malformed/);assert.throws(()=>buildHistoryPlan([],{}),/JSON object/);const input={...synced,unknown:{custom:true}};const before=JSON.stringify(input);buildHistoryPlan(playlists,input);assert.equal(JSON.stringify(input),before);});
+test("archive entries deduplicate only validated extractor identities",()=>{assert.deepEqual(archiveLines(`youtube ${target}\nyoutube ${target}\nyoutube invalid\nsecret`),[`youtube ${target}`]);});

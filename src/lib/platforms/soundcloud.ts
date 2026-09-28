@@ -37,6 +37,7 @@ function normalizeSoundcloudTrack(raw: Record<string, unknown>): NormalizedTrack
     artist,
     durationSec: durationMs / 1000,
     platform: "soundcloud",
+    publicIdentity: raw.sharing === "public",
   };
 }
 

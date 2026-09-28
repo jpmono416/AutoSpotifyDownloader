@@ -109,6 +109,7 @@ export const youtubeAdapter: PlatformAdapter = {
             artist: snippet.videoOwnerChannelTitle ?? snippet.channelTitle ?? "",
             durationSec: 0,
             platform: "youtube",
+            publicIdentity: false,
           });
         }
 
@@ -120,7 +121,7 @@ export const youtubeAdapter: PlatformAdapter = {
       for (let i = 0; i < ids.length; i += 50) {
         const batch = ids.slice(i, i + 50);
         const details = await yt.videos.list({
-          part: ["contentDetails"],
+          part: ["contentDetails","status"],
           id: batch,
         });
         const durMap = new Map<string, number>();
@@ -130,6 +131,8 @@ export const youtubeAdapter: PlatformAdapter = {
           }
         }
         for (const track of tracks) {
+          const video=details.data.items?.find(item=>item.id===track.id);
+          if(video) track.publicIdentity=video.status?.privacyStatus==="public";
           if (durMap.has(track.id)) track.durationSec = durMap.get(track.id)!;
         }
       }

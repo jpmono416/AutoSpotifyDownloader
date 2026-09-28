@@ -17,9 +17,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from spotify_to_youtube_sync import CONFIG_FILE
-
 BASE_DIR = Path(__file__).resolve().parent
+CONFIG_FILE = BASE_DIR / "playlists.json"
 ARCHIVE_FILE = BASE_DIR / "yt_archive.log"
 DOWNLOAD_LOG_FILE = BASE_DIR / "ytdlp_download.log"
 YTDLP_SETTINGS_FILE = BASE_DIR / "ytdlp_settings.json"
@@ -44,6 +43,8 @@ DEFAULT_YTDLP_SETTINGS: dict = {
 
 def load_ytdlp_settings() -> dict:
     settings = dict(DEFAULT_YTDLP_SETTINGS)
+    if os.environ.get("ASD_WORKER_QA") == "1":
+        return settings
     if not YTDLP_SETTINGS_FILE.exists():
         return settings
     try:
@@ -60,6 +61,8 @@ def load_ytdlp_settings() -> dict:
 
 def _resolve_config_locations(settings: dict) -> list[Path]:
     """Return explicit settings configs, or yt-dlp's standard user config."""
+    if os.environ.get("ASD_WORKER_QA") == "1":
+        return []
     configured: list[Path] = []
     for location in settings.get("config_locations") or []:
         path = Path(str(location)).expanduser()
@@ -255,6 +258,9 @@ def sync_download_archives(settings: dict, log_callback) -> None:
         else ARCHIVE_FILE
     )
     local = ARCHIVE_FILE
+    if os.environ.get("ASD_WORKER_QA") == "1":
+        log_callback("QA export uses its isolated job archive.")
+        return
     try:
         if primary.resolve() == local.resolve():
             lines = _read_archive_lines(primary)

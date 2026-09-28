@@ -39,7 +39,7 @@ async function processSync(job:JobRecord){
 async function runDownloader(job:JobRecord,playlists:Array<{id:string;name:string;youtubeId:string}> ,directory:string):Promise<Record<string,{success?:boolean;failures?:Array<{trackLabel?:string;explanation?:string}>}>>{
   const script=join(process.cwd(),"legacy","download_selected.py");const python=process.env.PYTHON_PATH||"python3";
   return new Promise((resolve,reject)=>{let buffer="",finalResults:Record<string,{success?:boolean;failures?:Array<{trackLabel?:string;explanation?:string}>}>={};
-    const child=spawn(python,["-u",script],{cwd:join(process.cwd(),"legacy"),env:{...process.env,PYTHONIOENCODING:"utf-8",MUSIC_DIR:directory,DOWNLOAD_ARCHIVE:join(directory,"archive.log")},stdio:["pipe","pipe","pipe"]});
+    const child=spawn(python,["-u",script],{cwd:join(process.cwd(),"legacy"),env:{...process.env,PYTHONIOENCODING:"utf-8",ASD_WORKER_QA:"1",MUSIC_DIR:directory,DOWNLOAD_ARCHIVE:join(directory,"archive.log")},stdio:["pipe","pipe","pipe"]});
     child.stdout.on("data",chunk=>{buffer+=chunk.toString("utf8");const lines=buffer.split("\n");buffer=lines.pop()??"";for(const line of lines){try{const event=JSON.parse(line) as {type?:string;results?:typeof finalResults};if(event.type==="done"&&event.results)finalResults=event.results;}catch{/* child diagnostics are intentionally not persisted */}}});
     child.stderr.on("data",()=>{});child.on("error",reject);child.on("close",code=>code===0||Object.keys(finalResults).length?resolve(finalResults):reject(new Error(`Downloader exited with code ${code}.`)));child.stdin.end(JSON.stringify({playlists}));
   });

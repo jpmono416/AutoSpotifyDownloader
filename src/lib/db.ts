@@ -2,7 +2,7 @@ import { jsonValue } from "./json-value";
 import postgres from "postgres";
 import { announceMode } from "./app-mode";
 import type { OperationFailure, Platform, PlatformTokens, PlaylistMapping, SyncArchiveEntry } from "./types";
-import { normalizedIdentity, type CachedMatch } from "./sync/cache";
+import { normalizedIdentity, reusableSourceIdentity, type CachedMatch } from "./sync/cache";
 import type { NormalizedTrack } from "./types";
 import { decryptToken, encryptToken } from "./auth/token-crypto";
 
@@ -64,6 +64,7 @@ export async function getSyncArchive(userId: string, archiveKey: string): Promis
 export async function saveSyncArchive(userId: string, archiveKey: string, entry: SyncArchiveEntry) { await sql`insert into sync_archives (user_id,archive_key,data) values (${userId},${archiveKey},${sql.json(jsonValue(entry))}) on conflict (user_id,archive_key) do update set data=excluded.data,updated_at=now()`; }
 
 export async function getCachedTrackMatch(source:NormalizedTrack,targetPlatform:Platform):Promise<CachedMatch|null> {
+  if(!reusableSourceIdentity(source) || targetPlatform!=="youtube") return null;
   const metadata=normalizedIdentity(source);
   const isrc=source.isrc?.toUpperCase()??null;
   const rows=await sql`select * from track_matches where target_platform=${targetPlatform} and confirmation_state<>'rejected' and
@@ -80,6 +81,7 @@ export async function cacheMetric(metric:"hit"|"invalidation") {
 export async function invalidateTrackMatch(id:string) { await sql`update track_matches set confirmation_state='rejected',last_verified_at=null,updated_at=now() where id=${id}`; await cacheMetric("invalidation"); }
 export async function verifyTrackMatch(id:string) {await sql`update track_matches set last_verified_at=now() where id=${id}`;}
 export async function saveTrackMatch(userId:string,source:NormalizedTrack,targetPlatform:Platform,targetTrackId:string,confidence:number) {
+  if(!reusableSourceIdentity(source) || targetPlatform!=="youtube") return;
   const identity=`${source.platform}:${source.id}`;
   const metadata=normalizedIdentity(source);
   await sql`insert into track_matches(source_identity,source_platform,source_track_id,isrc,target_platform,target_track_id,normalized_artist,normalized_title,duration_seconds,confidence,last_verified_at) values(${identity},${source.platform},${source.id},${source.isrc??null},${targetPlatform},${targetTrackId},${source.artist.trim().toLowerCase()},${source.title.trim().toLowerCase()},${Math.round(source.durationSec)},${confidence},now()) on conflict(source_identity,target_platform) do update set target_track_id=excluded.target_track_id,isrc=excluded.isrc,confidence=excluded.confidence,last_verified_at=now(),confirmation_state='automatic',provenance='automatic',updated_at=now() where track_matches.confirmation_state<>'confirmed'`;
