@@ -39,3 +39,26 @@ The limits are 45 MB per ZIP, four parts, 180 MB per job, one active export per 
 ## Key rotation
 
 Rows store `key_version`. Deploy code capable of resolving both old and new versioned keys before changing the active version, re-encrypt all token rows in a controlled migration, verify provider reconnects, and only then retire the old key. The current runtime intentionally fails authenticated decryption when the configured key is wrong.
+
+## Local-mode safeguards and history migration
+
+Keep `APP_MODE=production` on Vercel and both Railway services. Hosted environment
+markers reject local mode; do not remove those markers to work around a failure.
+Run migration `004_local_history.sql` before deploying this release. It marks local
+system users, adds match provenance, import audit records, aggregate metrics and
+workspace-scoped download history. Production sessions exclude system users, and
+workers claim only jobs belonging to their workspace type. Production QA eligibility
+is checked again when the worker executes the job.
+
+See [local development](LOCAL_DEVELOPMENT.md) for the loopback launcher and dedicated
+Postgres setup, and [history import](HISTORY_IMPORT.md) for read-only inspection,
+transactional apply, conflict interpretation and backup-based rollback. Production
+imports require an explicit existing user UUID. Stop workers and make a private
+pre-import backup before applying imports.
+
+Mode selection, import summaries, cache hits/invalidations and local downloader
+summaries use structured logs without private track contents, tokens or full paths.
+Aggregate counters live in `match_cache_metrics`. Reports and runtime archives stay
+in ignored `data/`. Never stage private JSON/history, `.env`, archives, media or
+credentials. A release must pass lint, TypeScript, tests (including a temporary
+Postgres run), build and production authentication/health verification.

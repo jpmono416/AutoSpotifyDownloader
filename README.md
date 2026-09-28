@@ -95,12 +95,16 @@ The original Tkinter desktop app and yt-dlp download scripts are preserved in `l
 - `legacy/download_playlists.py` — yt-dlp audio download (not included in web app v1)
 - `legacy/app.py` — desktop GUI
 
-The web dashboard's Download button starts only `legacy/download_selected.py`, not the
-legacy GUI. It reuses `legacy/download_playlists.py` and its optional
-`legacy/ytdlp_settings.json`, including the configured output directory, yt-dlp path,
-extra arguments, and download archive. Python, yt-dlp, and FFmpeg must be installed on
-the same computer that runs the Next.js server. Set `PYTHON_PATH` if Python is not
-available as `py -3` on Windows or `python3` elsewhere.
+Production downloads are QA-only jobs on Railway with private Supabase artifacts.
+For optional PC downloads and existing yt-dlp configuration/archive support, use
+explicit `APP_MODE=local` with a dedicated loopback Postgres database and the trusted
+loopback launcher. See [local development](docs/LOCAL_DEVELOPMENT.md) and
+[history import](docs/HISTORY_IMPORT.md). Local mode never activates merely because
+Node runs in development and cannot run on Vercel/Railway.
+
+Both `pnpm history:inspect` and `pnpm history:import` default to dry-run. Add `--apply`
+only after reviewing the report. Global provider match identities reduce repeated
+searches; playlist completion history remains private to its workspace.
 
 ## Scripts
 
