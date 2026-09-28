@@ -13,6 +13,7 @@ export interface NormalizedTrack {
   title: string;
   artist: string;
   durationSec: number;
+  isrc?: string;
   platform: Platform;
 }
 

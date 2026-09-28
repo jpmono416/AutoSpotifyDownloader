@@ -1,11 +1,15 @@
+import { jsonValue } from "./json-value";
 import postgres from "postgres";
+import { announceMode } from "./app-mode";
 import type { OperationFailure, Platform, PlatformTokens, PlaylistMapping, SyncArchiveEntry } from "./types";
+import { normalizedIdentity, type CachedMatch } from "./sync/cache";
+import type { NormalizedTrack } from "./types";
 import { decryptToken, encryptToken } from "./auth/token-crypto";
 
 // Next.js imports route modules while building Docker images, before Railway
 // injects runtime-only secrets. postgres.js connects lazily, so a non-routable
 // build placeholder is safe and real requests still use DATABASE_URL at runtime.
-const databaseUrl = process.env.DATABASE_URL ?? "postgresql://build:build@127.0.0.1:5432/build";
+const databaseUrl = (announceMode() === "local" ? process.env.LOCAL_DATABASE_URL : process.env.DATABASE_URL) ?? "postgresql://build:build@127.0.0.1:5432/build";
 
 const sql = postgres(databaseUrl, {
   max: 5, idle_timeout: 20, connect_timeout: 15,
@@ -56,11 +60,31 @@ export async function recordOperationFailure(userId: string, input: Omit<Operati
 export async function clearOperationFailures(userId: string) { await sql`delete from operation_failures where user_id=${userId}`; }
 
 export function normalizeArchiveEntry(entry: SyncArchiveEntry | null): SyncArchiveEntry { return entry ?? { tracks:{},lastProcessed:null,validated:false,playlistCache:{trackIds:[],fetchedAt:0} }; }
-export async function getSyncArchive(userId: string, archiveKey: string): Promise<SyncArchiveEntry> { const rows=await sql`select data from sync_archives where user_id=${userId} and archive_key=${archiveKey}`; return normalizeArchiveEntry((rows[0]?.data as SyncArchiveEntry|undefined) ?? null); }
-export async function saveSyncArchive(userId: string, archiveKey: string, entry: SyncArchiveEntry) { await sql`insert into sync_archives (user_id,archive_key,data) values (${userId},${archiveKey},${JSON.stringify(entry)}::jsonb) on conflict (user_id,archive_key) do update set data=excluded.data,updated_at=now()`; }
+export async function getSyncArchive(userId: string, archiveKey: string): Promise<SyncArchiveEntry> { const rows=await sql`select data from sync_archives where user_id=${userId} and archive_key=${archiveKey}`; return normalizeArchiveEntry((typeof rows[0]?.data === "string" ? JSON.parse(rows[0].data) : rows[0]?.data) ?? null); }
+export async function saveSyncArchive(userId: string, archiveKey: string, entry: SyncArchiveEntry) { await sql`insert into sync_archives (user_id,archive_key,data) values (${userId},${archiveKey},${sql.json(jsonValue(entry))}) on conflict (user_id,archive_key) do update set data=excluded.data,updated_at=now()`; }
 
-export async function getCachedTrackMatch(sourcePlatform:Platform,sourceTrackId:string,targetPlatform:Platform):Promise<string|null>{const rows=await sql`select target_track_id from track_matches where source_platform=${sourcePlatform} and source_track_id=${sourceTrackId} and target_platform=${targetPlatform} and confirmation_state<>'rejected' order by (confirmation_state='confirmed') desc,last_verified_at desc nulls last limit 1`;return rows[0]?.target_track_id??null;}
-export async function saveTrackMatch(userId:string,source: {platform:Platform;id:string;artist:string;title:string;durationSec:number},targetPlatform:Platform,targetTrackId:string,confidence:number){const identity=`${source.platform}:${source.id}`;await sql`insert into track_matches(source_identity,source_platform,source_track_id,target_platform,target_track_id,normalized_artist,normalized_title,duration_seconds,confidence,created_by_user_id,last_verified_at) values(${identity},${source.platform},${source.id},${targetPlatform},${targetTrackId},${source.artist.trim().toLowerCase()},${source.title.trim().toLowerCase()},${source.durationSec},${confidence},${userId},now()) on conflict(source_identity,target_platform) do update set target_track_id=excluded.target_track_id,confidence=excluded.confidence,last_verified_at=now(),updated_at=now() where track_matches.confirmation_state<>'confirmed'`;}
+export async function getCachedTrackMatch(source:NormalizedTrack,targetPlatform:Platform):Promise<CachedMatch|null> {
+  const metadata=normalizedIdentity(source);
+  const isrc=source.isrc?.toUpperCase()??null;
+  const rows=await sql`select * from track_matches where target_platform=${targetPlatform} and confirmation_state<>'rejected' and
+    ((${isrc}::text is not null and isrc=${isrc}) or (source_platform=${source.platform} and source_track_id=${source.id}) or (source_identity=${metadata}))
+    order by (confirmation_state='confirmed') desc, (isrc=${isrc}) desc nulls last, (source_platform=${source.platform} and source_track_id=${source.id}) desc, confidence desc, last_verified_at desc nulls last limit 2`;
+  if(!rows[0])return null;
+  if(rows[1] && rows[0].isrc && rows[0].isrc===rows[1].isrc && rows[0].confirmation_state===rows[1].confirmation_state && rows[0].target_track_id!==rows[1].target_track_id) return null;
+  const r=rows[0];return {id:r.id,targetTrackId:r.target_track_id,lastVerifiedAt:r.last_verified_at?new Date(r.last_verified_at).getTime():null,confidence:Number(r.confidence),confirmationState:r.confirmation_state};
+}
+export async function cacheMetric(metric:"hit"|"invalidation") {
+  await sql`insert into match_cache_metrics(metric,count) values(${metric},1) on conflict(metric) do update set count=match_cache_metrics.count+1,updated_at=now()`;
+  console.info(JSON.stringify({event:`match_cache_${metric}`}));
+}
+export async function invalidateTrackMatch(id:string) { await sql`update track_matches set confirmation_state='rejected',last_verified_at=null,updated_at=now() where id=${id}`; await cacheMetric("invalidation"); }
+export async function verifyTrackMatch(id:string) {await sql`update track_matches set last_verified_at=now() where id=${id}`;}
+export async function saveTrackMatch(userId:string,source:NormalizedTrack,targetPlatform:Platform,targetTrackId:string,confidence:number) {
+  const identity=`${source.platform}:${source.id}`;
+  const metadata=normalizedIdentity(source);
+  await sql`insert into track_matches(source_identity,source_platform,source_track_id,isrc,target_platform,target_track_id,normalized_artist,normalized_title,duration_seconds,confidence,last_verified_at) values(${identity},${source.platform},${source.id},${source.isrc??null},${targetPlatform},${targetTrackId},${source.artist.trim().toLowerCase()},${source.title.trim().toLowerCase()},${Math.round(source.durationSec)},${confidence},now()) on conflict(source_identity,target_platform) do update set target_track_id=excluded.target_track_id,isrc=excluded.isrc,confidence=excluded.confidence,last_verified_at=now(),confirmation_state='automatic',provenance='automatic',updated_at=now() where track_matches.confirmation_state<>'confirmed'`;
+  if(metadata) await sql`insert into track_matches(source_identity,source_platform,source_track_id,isrc,target_platform,target_track_id,normalized_artist,normalized_title,duration_seconds,confidence,last_verified_at) values(${metadata},${source.platform},${source.id},${source.isrc??null},${targetPlatform},${targetTrackId},${source.artist.trim().toLowerCase()},${source.title.trim().toLowerCase()},${Math.round(source.durationSec)},${confidence},now()) on conflict do nothing`;
+}
 
 export async function saveOAuthState(userId: string, input: {state:string;platform:Platform;codeVerifier?:string;redirectAfter?:string}) { await sql`insert into oauth_states (state,user_id,platform,code_verifier,redirect_after) values (${input.state},${userId},${input.platform},${input.codeVerifier??null},${input.redirectAfter??"/"})`; }
 export async function consumeOAuthState(state: string): Promise<OAuthState|null> { const rows=await sql`delete from oauth_states where state=${state} and created_at > now()-interval '15 minutes' returning *`; const r=rows[0]; return r ? {state:r.state,userId:r.user_id,platform:r.platform,codeVerifier:r.code_verifier,redirectAfter:r.redirect_after,createdAt:new Date(r.created_at).getTime()} : null; }

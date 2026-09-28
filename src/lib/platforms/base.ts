@@ -34,6 +34,7 @@ export interface PlatformAdapter {
     trackId: string,
     tokens: PlatformTokens
   ): Promise<void>;
+  validateCachedTrack?(trackId: string, source: NormalizedTrack, tokens: PlatformTokens): Promise<boolean>;
   validatePlaylist(playlistId: string, tokens: PlatformTokens): Promise<boolean>;
 }
 

@@ -8,9 +8,11 @@ import {
   recordOperationFailure,
   getCachedTrackMatch,
   saveTrackMatch,
+  invalidateTrackMatch, verifyTrackMatch, cacheMetric,
 } from "../db";
 import { getValidTokens } from "../auth/tokens";
 import { getSourceAdapter, getTargetAdapter } from "../platforms";
+import { resolveCachedTarget } from "./cache";
 import { pickBestMatch } from "./matcher";
 import { ApiRateLimitError } from "../platforms/base";
 import { isPlatformConfigured, platformConfigurationMessage } from "../platform-config";
@@ -134,14 +136,6 @@ export async function syncPlaylists(request: SyncRequest, userId: string, hooks:
       const tracks=Array.from(new Map(fetchedTracks.map(track=>[sourceTrackKey(sourcePlatform,track.id),track])).values());
       log(`Fetched ${tracks.length} tracks from ${sourcePlatform}.`);
 
-      let startIndex = 0;
-      if (archive.lastProcessed) {
-        const idx = tracks.findIndex(
-          (t) => sourceTrackKey(sourcePlatform, t.id) === archive.lastProcessed
-        );
-        if (idx >= 0) startIndex = idx + 1;
-      }
-
       const playlistCache = await targetAdapter.fetchExistingTrackIds(
         targetPlaylistId,
         targetTokens,
@@ -153,7 +147,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string, hooks:
       let added = 0;
       let skipped = 0;
 
-      for (const track of tracks.slice(startIndex)) {
+      for (const track of tracks) {
         if(await hooks.isCancelled?.())return {success:false,abortReason:"cancelled",results,logs};
         if (abortReason) break;
 
@@ -166,8 +160,9 @@ export async function syncPlaylists(request: SyncRequest, userId: string, hooks:
         const query = `${track.artist} - ${track.title}`;
 
         try {
-          const cachedTargetId=await getCachedTrackMatch(sourcePlatform,track.id,targetPlatform);
-          if(cachedTargetId){await hooks.onCacheHit?.();if(existingIds.has(cachedTargetId)){archive.tracks[trackKey]={targetTrackId:cachedTargetId,syncedAt:Date.now()};archive.lastProcessed=trackKey;skipped++;continue;}await targetAdapter.addTrackToPlaylist(targetPlaylistId,cachedTargetId,targetTokens);if(targetPlatform==="youtube")await hooks.onQuota?.("insert",50);existingIds.add(cachedTargetId);archive.tracks[trackKey]={targetTrackId:cachedTargetId,syncedAt:Date.now()};archive.lastProcessed=trackKey;added++;continue;}
+          const cached=targetAdapter.validateCachedTrack ? await getCachedTrackMatch(track,targetPlatform) : null;
+          const cachedTargetId=await resolveCachedTarget(cached,{validate:id=>targetAdapter.validateCachedTrack?.(id,track,targetTokens)??Promise.resolve(false),invalidate:invalidateTrackMatch,verified:verifyTrackMatch,hit:async()=>{await cacheMetric("hit");}});
+          if(cachedTargetId){await hooks.onCacheHit?.();if(existingIds.has(cachedTargetId)){archive.tracks[trackKey]={targetTrackId:cachedTargetId,syncedAt:Date.now()};archive.lastProcessed=trackKey;skipped++;await saveSyncArchive(userId,finalArchiveKey,archive);continue;}await targetAdapter.addTrackToPlaylist(targetPlaylistId,cachedTargetId,targetTokens);if(targetPlatform==="youtube")await hooks.onQuota?.("insert",50);existingIds.add(cachedTargetId);archive.tracks[trackKey]={targetTrackId:cachedTargetId,syncedAt:Date.now()};archive.lastProcessed=trackKey;archive.playlistCache.trackIds.push(cachedTargetId);added++;await saveSyncArchive(userId,finalArchiveKey,archive);await hooks.onProgress?.(added+skipped,tracks.length,`Processing ${mapping.name}`);continue;}
           const candidates = await targetAdapter.searchTracks(query, targetTokens, 5);
           if(targetPlatform==="youtube")await hooks.onQuota?.("search",1);
           if (candidates.length === 0) {
@@ -212,6 +207,7 @@ export async function syncPlaylists(request: SyncRequest, userId: string, hooks:
           };
           archive.lastProcessed = trackKey;
           added++;
+          await saveSyncArchive(userId,finalArchiveKey,archive);
           await hooks.onProgress?.(added+skipped,tracks.length,`Processing ${mapping.name}`);
           await sleep(SLEEP_MS);
         } catch (error) {

@@ -1,8 +1,11 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { sql } from "../db";
+
+import { appMode, trustedLocalRequest } from "../app-mode";
+import { ensureLocalWorkspace } from "../local-workspace";
 
 const scrypt = promisify(scryptCallback);
 const COOKIE_NAME = "playlist_session";
@@ -34,9 +37,13 @@ export async function createSession(userId: string): Promise<void> {
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
+  if (appMode() === "local") {
+    if (!trustedLocalRequest(await headers(), process.env, true)) return null;
+    return ensureLocalWorkspace(sql);
+  }
   const token = (await cookies()).get(COOKIE_NAME)?.value;
   if (!token) return null;
-  const rows = await sql`select u.id,u.username from sessions s join users u on u.id=s.user_id where s.token_hash=${tokenHash(token)} and s.expires_at>now()`;
+  const rows = await sql`select u.id,u.username from sessions s join users u on u.id=s.user_id where s.token_hash=${tokenHash(token)} and s.expires_at>now() and u.is_local_system=false`;
   return rows[0] ? { id:rows[0].id, username:rows[0].username } : null;
 }
 

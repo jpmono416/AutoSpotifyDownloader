@@ -4,13 +4,16 @@ import { join } from "path";
 import postgres from "postgres";
 import { loadEnvConfig } from "@next/env";
 import { encryptToken } from "../src/lib/auth/token-crypto";
+import { announceMode } from "../src/lib/app-mode";
 loadEnvConfig(process.cwd());
-const databaseUrl=process.env.DATABASE_URL;
+const local=announceMode()==="local";
+const databaseUrl=local?process.env.LOCAL_DATABASE_URL:process.env.DATABASE_URL;
 if(!databaseUrl) throw new Error("DATABASE_URL is required.");
 async function main() {
   const sql=postgres(databaseUrl!,{ssl:databaseUrl!.includes("localhost")||databaseUrl!.includes("127.0.0.1")?false:"require",prepare:false,max:1});
   const directory=join(process.cwd(),"supabase","migrations");
   for (const filename of readdirSync(directory).filter((name)=>name.endsWith(".sql")).sort()) {
+    if(local && filename==="003_private_download_bucket.sql") continue;
     await sql.unsafe(readFileSync(join(directory,filename),"utf8"));
     console.log(`Applied ${filename}`);
   }

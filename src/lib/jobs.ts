@@ -1,4 +1,6 @@
+import { jsonValue } from "./json-value";
 import { randomUUID } from "crypto";
+import { appMode } from "./app-mode";
 import { sql } from "./db";
 import type { Platform, SyncRequest } from "./types";
 
@@ -14,21 +16,21 @@ function fromRow(row:Record<string,unknown>):JobRecord {
   const time=(value:unknown)=>value ? new Date(value as string|number|Date).getTime() : null;
   return { id:String(row.id),userId:String(row.user_id),type:row.type as JobType,status:row.status as JobStatus,
     progressCurrent:Number(row.progress_current),progressTotal:Number(row.progress_total),progressMessage:row.progress_message as string|null,
-    request:(row.request??{}) as Record<string,unknown>,result:row.result,errorCode:row.error_code as string|null,errorMessage:row.error_message as string|null,
+    request:(typeof row.request==="string"?JSON.parse(row.request):row.request??{}) as Record<string,unknown>,result:typeof row.result==="string"?JSON.parse(row.result):row.result,errorCode:row.error_code as string|null,errorMessage:row.error_message as string|null,
     attempts:Number(row.attempts),maxAttempts:Number(row.max_attempts),availableAt:time(row.available_at)!,startedAt:time(row.started_at),completedAt:time(row.completed_at),createdAt:time(row.created_at)!,updatedAt:time(row.updated_at)! };
 }
 
-export function downloadsEnabled():boolean { return process.env.DOWNLOADS_ENABLED?.toLowerCase()==="true"; }
-export async function isQaUser(userId:string):Promise<boolean> { if(!downloadsEnabled()) return false; const rows=await sql`select 1 from qa_download_allowlist where user_id=${userId}`; return rows.length>0; }
+export function downloadsEnabled():boolean { return appMode()==="local" || process.env.DOWNLOADS_ENABLED?.toLowerCase()==="true"; }
+export async function isQaUser(userId:string):Promise<boolean> { if(appMode()==="local") { const local=await sql`select 1 from users where id=${userId} and is_local_system=true`; return local.length>0; } if(!downloadsEnabled()) return false; const rows=await sql`select 1 from qa_download_allowlist where user_id=${userId}`; return rows.length>0; }
 
 export async function createJob(userId:string,type:JobType,request:Record<string,unknown>,progressTotal=0):Promise<JobRecord> {
-  const rows=await sql`insert into jobs(user_id,type,request,progress_total,progress_message) values(${userId},${type},${JSON.stringify(request)}::jsonb,${progressTotal},'Waiting for a worker') returning *`;
+  const rows=await sql`insert into jobs(user_id,type,request,progress_total,progress_message) values(${userId},${type},${sql.json(jsonValue(request))},${progressTotal},'Waiting for a worker') returning *`;
   await addJobEvent(String(rows[0].id),userId,"info","queued",`${type === "sync" ? "Sync" : "QA export"} queued.`);
   return fromRow(rows[0] as Record<string,unknown>);
 }
 export async function listJobs(userId:string,limit=50):Promise<JobRecord[]> { const rows=await sql`select * from jobs where user_id=${userId} order by created_at desc limit ${Math.min(Math.max(limit,1),100)}`; return rows.map(r=>fromRow(r as Record<string,unknown>)); }
 export async function getJob(userId:string,id:string):Promise<JobRecord|null> { const rows=await sql`select * from jobs where id=${id} and user_id=${userId}`; return rows[0]?fromRow(rows[0] as Record<string,unknown>):null; }
-export async function addJobEvent(jobId:string,userId:string,level:"debug"|"info"|"warning"|"error",eventType:string,message:string,metadata:Record<string,unknown>={}) { await sql`insert into job_events(job_id,user_id,level,event_type,message,metadata) values(${jobId},${userId},${level},${eventType},${message},${JSON.stringify(metadata)}::jsonb)`; }
+export async function addJobEvent(jobId:string,userId:string,level:"debug"|"info"|"warning"|"error",eventType:string,message:string,metadata:Record<string,unknown>={}) { await sql`insert into job_events(job_id,user_id,level,event_type,message,metadata) values(${jobId},${userId},${level},${eventType},${message},${sql.json(jsonValue(metadata))})`; }
 export async function listJobEvents(userId:string,jobId:string,after=0) { return sql`select id,level,event_type as "eventType",message,metadata,created_at as "createdAt" from job_events where job_id=${jobId} and user_id=${userId} and id>${after} order by id asc limit 500`; }
 
 export async function cancelJob(userId:string,id:string):Promise<boolean> { const rows=await sql`update jobs set status='cancelled',completed_at=now(),progress_message='Cancelled by user',locked_by=null,locked_at=null,heartbeat_at=null where id=${id} and user_id=${userId} and status in ('queued','running','paused') returning id`; if(rows[0]) await addJobEvent(id,userId,"warning","cancelled","Job cancelled by user."); return !!rows[0]; }
@@ -36,7 +38,7 @@ export async function retryJob(userId:string,id:string):Promise<boolean> { const
 
 export async function claimJob(workerId:string):Promise<JobRecord|null> {
   return sql.begin(async tx=>{
-    const rows=await tx`select * from jobs j where j.status='queued' and j.available_at<=now() and j.attempts<j.max_attempts and (j.type<>'download' or not exists(select 1 from jobs active where active.type='download' and active.status='running')) order by j.created_at for update skip locked limit 1`;
+    const rows=await tx`select * from jobs j where exists(select 1 from users u where u.id=j.user_id and u.is_local_system=${appMode()==="local"}) and j.status='queued' and j.available_at<=now() and j.attempts<j.max_attempts and (j.type<>'download' or not exists(select 1 from jobs active where active.type='download' and active.status='running')) order by j.created_at for update skip locked limit 1`;
     if(!rows[0]) return null;
     const updated=await tx`update jobs set status='running',attempts=attempts+1,locked_by=${workerId},locked_at=now(),heartbeat_at=now(),started_at=coalesce(started_at,now()),progress_message='Worker started' where id=${rows[0].id} returning *`;
     return fromRow(updated[0] as Record<string,unknown>);
@@ -45,7 +47,7 @@ export async function claimJob(workerId:string):Promise<JobRecord|null> {
 export async function heartbeat(workerId:string,jobId:string|null) { await sql`insert into worker_heartbeats(worker_id,worker_type,current_job_id,heartbeat_at) values(${workerId},'jobs',${jobId},now()) on conflict(worker_id) do update set current_job_id=excluded.current_job_id,heartbeat_at=now(),metadata=excluded.metadata`; if(jobId) await sql`update jobs set heartbeat_at=now(),updated_at=now() where id=${jobId} and locked_by=${workerId} and status='running'`; }
 export async function jobCancelled(id:string):Promise<boolean> { const rows=await sql`select status from jobs where id=${id}`; return rows[0]?.status==="cancelled"; }
 export async function updateJobProgress(id:string,current:number,total:number,message:string) { await sql`update jobs set progress_current=${current},progress_total=${total},progress_message=${message},heartbeat_at=now(),updated_at=now() where id=${id} and status='running'`; }
-export async function finishJob(job:JobRecord,result:unknown) { await sql`update jobs set status='succeeded',result=${JSON.stringify(result)}::jsonb,progress_current=greatest(progress_current,progress_total),progress_message='Completed',completed_at=now(),locked_by=null,locked_at=null,heartbeat_at=null where id=${job.id} and status='running'`; await addJobEvent(job.id,job.userId,"info","succeeded","Job completed."); }
+export async function finishJob(job:JobRecord,result:unknown) { await sql`update jobs set status='succeeded',result=${sql.json(jsonValue(result))},progress_current=greatest(progress_current,progress_total),progress_message='Completed',completed_at=now(),locked_by=null,locked_at=null,heartbeat_at=null where id=${job.id} and status='running'`; await addJobEvent(job.id,job.userId,"info","succeeded","Job completed."); }
 export async function pauseJob(job:JobRecord,code:string,message:string,resumeAt:Date) { await sql`update jobs set status='paused',error_code=${code},error_message=${message},progress_message=${message},available_at=${resumeAt},locked_by=null,locked_at=null,heartbeat_at=null where id=${job.id} and status='running'`; await addJobEvent(job.id,job.userId,"warning","paused",message,{resumeAt:resumeAt.toISOString()}); }
 export async function failJob(job:JobRecord,code:string,message:string,retryable=true) {
   const shouldRetry=retryable && job.attempts<job.maxAttempts;
@@ -64,7 +66,7 @@ export async function estimateYoutubeQuota(userId:string,playlistCount:number):P
   const userRemaining=Math.max(0,userBudget-Number(rows[0].user_units)),globalRemaining=Math.max(0,globalBudget-Number(rows[0].global_units));
   return {searchRequests,insertions,units,allowed:units<=userRemaining&&units<=globalRemaining,userRemaining,globalRemaining};
 }
-export async function recordQuota(userId:string,jobId:string,operation:string,units:number,requests:number,metadata:Record<string,unknown>={}) { await sql`insert into quota_usage(user_id,provider,operation,units,request_count,job_id,metadata) values(${userId},'youtube',${operation},${units},${requests},${jobId},${JSON.stringify(metadata)}::jsonb)`; }
+export async function recordQuota(userId:string,jobId:string,operation:string,units:number,requests:number,metadata:Record<string,unknown>={}) { await sql`insert into quota_usage(user_id,provider,operation,units,request_count,job_id,metadata) values(${userId},'youtube',${operation},${units},${requests},${jobId},${sql.json(jsonValue(metadata))})`; }
 
 export async function listArtifacts(userId:string,jobId:string) { return sql`select id,filename,size_bytes as "sizeBytes",part_number as "partNumber",expires_at as "expiresAt",created_at as "createdAt" from download_artifacts where user_id=${userId} and job_id=${jobId} and deleted_at is null and expires_at>now() order by part_number`; }
 export async function cleanupDatabase() {

@@ -3,7 +3,7 @@ import type { PlatformTokens } from "../types";
 import type { NormalizedTrack } from "../types";
 import type { PlatformAdapter } from "./base";
 import { ApiRateLimitError } from "./base";
-import { parseIso8601Duration } from "../sync/matcher";
+import { scoreMatch, parseIso8601Duration } from "../sync/matcher";
 
 const YT_SCOPES = ["https://www.googleapis.com/auth/youtube"];
 const PLAYLIST_CACHE_TTL = 3600;
@@ -49,6 +49,19 @@ function handleYoutubeError(error: unknown): never {
 
 export const youtubeAdapter: PlatformAdapter = {
   platform: "youtube",
+
+  async validateCachedTrack(trackId, source, tokens) {
+    if (!/^[A-Za-z0-9_-]{11}$/.test(trackId)) return false;
+    try {
+      const response=await getYoutubeClient(tokens).videos.list({part:["snippet","contentDetails","status"],id:[trackId]});
+      const video=response.data.items?.[0];
+      if(!video || video.status?.privacyStatus==="private" || ["deleted","failed","rejected"].includes(video.status?.uploadStatus??"")) return false;
+      const restriction=video.contentDetails?.regionRestriction;
+      // Conservatively re-search restricted targets; availability depends on the caller's region.
+      if(restriction?.blocked?.length || restriction?.allowed) return false;
+      return scoreMatch(source,{id:trackId,title:video.snippet?.title??"",artist:video.snippet?.channelTitle??"",durationSec:parseIso8601Duration(video.contentDetails?.duration??"")})>=60;
+    } catch(error) { handleYoutubeError(error); }
+  },
 
   async getPlaylistName(playlistId, tokens) {
     const yt = getYoutubeClient(tokens);

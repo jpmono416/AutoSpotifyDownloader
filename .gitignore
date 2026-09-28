@@ -26,3 +26,15 @@ legacy/.cache/
 .vercel
 .env*
 supabase/.temp/
+
+# Private import reports, arbitrary archives and downloaded media
+*history*report*.json
+*.log
+*.flac
+*.mp3
+*.wav
+*.m4a
+*.webm
+*.mp4
+*.opus
+*.ogg

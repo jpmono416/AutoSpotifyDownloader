@@ -39,6 +39,7 @@ function normalizeSpotifyTrack(item: Record<string, unknown>): NormalizedTrack |
     artist,
     durationSec: (durationMs ?? 0) / 1000,
     platform: "spotify",
+    isrc: (track.external_ids as {isrc?:string}|undefined)?.isrc,
   };
 }
 

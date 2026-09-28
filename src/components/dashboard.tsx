@@ -9,6 +9,7 @@ type ConnectionStatus = Record<Platform, boolean>;
 type JobSummary={id:string;type:"sync"|"download";status:"queued"|"running"|"paused"|"succeeded"|"failed"|"cancelled"|"expired";progressCurrent:number;progressTotal:number;progressMessage:string|null;errorMessage:string|null;attempts:number;maxAttempts:number;createdAt:number};
 
 interface DashboardProps {
+  localDiagnostics?: { storage:string; directory?:string; config?:string; archive?:string; source?:string; error?:string };
   username: string;
   initialStatus: ConnectionStatus;
   initialConfigured: ConnectionStatus;
@@ -21,6 +22,7 @@ function formatActivity(value: number | null) {
 }
 
 function PlaylistCover({ playlist, onUpdated }: { playlist: PlaylistMapping; onUpdated: () => void }) {
+  const [errorMessage,setErrorMessage]=useState<string|null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<Platform | null>(null);
   const linked: Record<Platform, boolean> = { spotify: !!playlist.spotifyId, youtube: !!playlist.youtubeId, soundcloud: !!playlist.soundcloudId };
@@ -34,12 +36,13 @@ function PlaylistCover({ playlist, onUpdated }: { playlist: PlaylistMapping; onU
       setOpen(false);
       onUpdated();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Could not fetch cover image.");
+      setErrorMessage(error instanceof Error ? error.message : "Could not fetch cover image.");
     } finally { setLoading(null); }
   };
 
   return (
     <div className="relative shrink-0">
+      {errorMessage&&<p role="status" className="max-w-48 text-xs text-red-300">{errorMessage}</p>}
       <button type="button" onClick={() => setOpen((value) => !value)} className="block rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--blue)]" title="Change playlist cover">
         <img src={playlist.coverUrl ?? "/playlist-placeholder.svg"} alt={`${playlist.name} cover`} className="h-16 w-16 rounded-lg border border-[var(--border)] object-cover" />
       </button>
@@ -54,6 +57,7 @@ function PlaylistCover({ playlist, onUpdated }: { playlist: PlaylistMapping; onU
 }
 
 export default function Dashboard({
+  localDiagnostics,
   username,
   initialStatus,
   initialConfigured,
@@ -167,7 +171,7 @@ export default function Dashboard({
     if (selected.size === 0) return;
     setDownloading(true);
     setLogTitle("Download Log");
-    setLogs(["Queueing QA export..."]);
+    setLogs([localDiagnostics?"Queueing local filesystem download...":"Queueing QA export..."]);
     setLogsOpen(true);
     try {
       const res = await fetch("/api/jobs/download", {
@@ -175,7 +179,7 @@ export default function Dashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playlistIds: Array.from(selected) }),
       });
-      const data=await res.json();if(!res.ok)throw new Error(data.error??`Export failed (${res.status})`);setLogs([`Queued QA export ${data.job.id}. It will continue in the Railway worker.`]);
+      const data=await res.json();if(!res.ok)throw new Error(data.error??`Export failed (${res.status})`);setLogs([localDiagnostics?`Queued local download ${data.job.id}. Run pnpm worker on this computer.`:`Queued QA export ${data.job.id}. It will continue in the Railway worker.`]);
     } catch (err) {
       setLogs((previous) => [...previous, `Error: ${err instanceof Error ? err.message : String(err)}`]);setActivityMessage(err instanceof Error?err.message:String(err));
     } finally {
@@ -227,12 +231,13 @@ export default function Dashboard({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      {localDiagnostics&&<aside className="sticky top-0 z-40 mb-6 rounded-lg border border-amber-500 bg-amber-950 p-4 text-amber-100"><strong>Local single-user mode</strong><p className="text-sm">Trusted loopback workspace / {localDiagnostics.storage}</p><details className="mt-2 text-sm"><summary>Local download and history diagnostics</summary>{localDiagnostics.error?<p>{localDiagnostics.error}</p>:<><p>Output: {localDiagnostics.directory}</p><p>yt-dlp config: {localDiagnostics.config}</p><p>Archive: {localDiagnostics.archive}</p><p>Resolution: {localDiagnostics.source}</p></>}<p>Inspect history: <code>pnpm history:inspect</code>. Import: <code>pnpm history:import -- --apply</code> after reviewing the dry run.</p><p>YouTube terms and copyright restrictions still apply. Download only content you are authorized to download.</p></details></aside>}
       <header className="mb-8 flex items-start justify-between gap-4">
         <div><h1 className="text-3xl font-bold tracking-tight">Playlist Sync</h1>
         <p className="mt-2 text-[var(--muted)]">
           Copy playlists seamlessly between Spotify, YouTube, and SoundCloud.
         </p></div>
-        <div className="text-right"><p className="mb-2 text-sm text-[var(--muted)]">{username}</p><button className="text-sm hover:underline" onClick={async()=>{await fetch('/api/session/logout',{method:'POST'});window.location.href='/login';}}>Sign out</button></div>
+        <div className="text-right"><p className="mb-2 text-sm text-[var(--muted)]">{username}</p>{!localDiagnostics&&<button className="text-sm hover:underline" onClick={async()=>{await fetch('/api/session/logout',{method:'POST'});window.location.href='/login';}}>Sign out</button>}</div>
       </header>
 
       {(!PLATFORMS.every(platform=>status[platform])||playlists.length===0)&&<section className="mb-8 rounded-xl border border-blue-800/60 bg-blue-950/20 p-5" aria-labelledby="getting-started"><h2 id="getting-started" className="font-semibold">First-run checklist</h2><ol className="mt-3 grid gap-2 text-sm sm:grid-cols-3"><li>{Object.values(status).some(Boolean)?"✓":"1."} Connect a source provider</li><li>{playlists.length?"✓":"2."} Paste a playlist URL</li><li>3. Select it and queue a sync</li></ol></section>}
@@ -302,7 +307,7 @@ export default function Dashboard({
                   disabled={downloading}
                   className="rounded-lg border border-green-700 px-4 py-2 text-sm text-green-300 hover:bg-green-900/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {downloading ? "Queueing..." : `QA Export (${selected.size})`}
+                  {downloading ? "Queueing..." : `${localDiagnostics?"Local download":"QA Export"} (${selected.size})`}
                 </button>}
                 <button
                   onClick={handleRemove}
@@ -392,7 +397,7 @@ export default function Dashboard({
 
       <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6" aria-labelledby="activity-heading">
         <div className="mb-4 flex items-center justify-between"><div><h2 id="activity-heading" className="text-lg font-semibold">Job activity</h2><p className="mt-1 text-sm text-[var(--muted)]">Jobs continue on the worker after you close this page.</p></div><button onClick={()=>void refresh()} className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm">Refresh</button></div>
-        {jobs.length===0?<p className="text-sm text-[var(--muted)]">No background jobs yet.</p>:<ul className="space-y-3">{jobs.map(job=>{const percent=job.progressTotal?Math.min(100,Math.round(job.progressCurrent/job.progressTotal*100)):0;return <li key={job.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-medium capitalize">{job.type}</span><span className={`rounded-full px-2 py-0.5 text-xs ${job.status==="succeeded"?"bg-green-900/50 text-green-300":job.status==="failed"?"bg-red-900/50 text-red-300":job.status==="paused"?"bg-amber-900/50 text-amber-200":"bg-blue-900/50 text-blue-200"}`}>{job.status}</span></div><p className="mt-1 text-sm text-[var(--muted)]">{job.progressMessage??job.errorMessage??"Waiting"}</p><p className="mt-1 text-xs text-[var(--muted)]">{new Date(job.createdAt).toLocaleString()} · attempt {job.attempts}/{job.maxAttempts}</p></div><div className="flex gap-2">{["queued","running","paused"].includes(job.status)&&<button onClick={()=>void jobAction(job,"cancel")} className="rounded border border-red-800 px-2 py-1 text-xs text-red-300">Cancel</button>}{job.status==="failed"&&job.attempts<job.maxAttempts&&<button onClick={()=>void jobAction(job,"retry")} className="rounded border border-blue-700 px-2 py-1 text-xs text-blue-300">Retry</button>}{job.type==="download"&&job.status==="succeeded"&&<button onClick={()=>void loadArtifacts(job.id)} className="rounded border border-green-700 px-2 py-1 text-xs text-green-300">Get links</button>}</div></div>{job.progressTotal>0&&<div className="mt-3"><div className="h-2 overflow-hidden rounded bg-black/30"><div className="h-full bg-[var(--blue)] transition-all" style={{width:`${percent}%`}} /></div><p className="mt-1 text-right text-xs text-[var(--muted)]">{job.progressCurrent}/{job.progressTotal}</p></div>}{artifactLinks[job.id]?.length>0&&<ul className="mt-3 space-y-1 border-t border-[var(--border)] pt-3">{artifactLinks[job.id].map(item=><li key={item.url}><a href={item.url} className="text-sm text-[var(--blue)] hover:underline" download>{item.filename} ({(item.sizeBytes/1_000_000).toFixed(1)} MB)</a></li>)}</ul>}</li>;})}</ul>}
+        {jobs.length===0?<p className="text-sm text-[var(--muted)]">No background jobs yet.</p>:<ul className="space-y-3">{jobs.map(job=>{const percent=job.progressTotal?Math.min(100,Math.round(job.progressCurrent/job.progressTotal*100)):0;return <li key={job.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="font-medium capitalize">{job.type}</span><span className={`rounded-full px-2 py-0.5 text-xs ${job.status==="succeeded"?"bg-green-900/50 text-green-300":job.status==="failed"?"bg-red-900/50 text-red-300":job.status==="paused"?"bg-amber-900/50 text-amber-200":"bg-blue-900/50 text-blue-200"}`}>{job.status}</span></div><p className="mt-1 text-sm text-[var(--muted)]">{job.progressMessage??job.errorMessage??"Waiting"}</p><p className="mt-1 text-xs text-[var(--muted)]">{new Date(job.createdAt).toLocaleString()} · attempt {job.attempts}/{job.maxAttempts}</p></div><div className="flex gap-2">{["queued","running","paused"].includes(job.status)&&<button onClick={()=>void jobAction(job,"cancel")} className="rounded border border-red-800 px-2 py-1 text-xs text-red-300">Cancel</button>}{job.status==="failed"&&job.attempts<job.maxAttempts&&<button onClick={()=>void jobAction(job,"retry")} className="rounded border border-blue-700 px-2 py-1 text-xs text-blue-300">Retry</button>}{!localDiagnostics&&job.type==="download"&&job.status==="succeeded"&&<button onClick={()=>void loadArtifacts(job.id)} className="rounded border border-green-700 px-2 py-1 text-xs text-green-300">Get links</button>}</div></div>{job.progressTotal>0&&<div className="mt-3"><div className="h-2 overflow-hidden rounded bg-black/30"><div className="h-full bg-[var(--blue)] transition-all" style={{width:`${percent}%`}} /></div><p className="mt-1 text-right text-xs text-[var(--muted)]">{job.progressCurrent}/{job.progressTotal}</p></div>}{artifactLinks[job.id]?.length>0&&<ul className="mt-3 space-y-1 border-t border-[var(--border)] pt-3">{artifactLinks[job.id].map(item=><li key={item.url}><a href={item.url} className="text-sm text-[var(--blue)] hover:underline" download>{item.filename} ({(item.sizeBytes/1_000_000).toFixed(1)} MB)</a></li>)}</ul>}</li>;})}</ul>}
       </section>
 
       <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--surface)]">

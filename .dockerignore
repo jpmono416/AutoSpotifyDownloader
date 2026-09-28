@@ -8,3 +8,18 @@ playlists.json
 synced.json
 client_secret*.json
 supabase/.temp
+
+# Local credentials/configuration/history and media must never enter hosted images.
+**/.env*
+**/client_secret*.json
+**/ytdlp_settings.json
+**/*token*.pickle
+**/*.log
+**/*.flac
+**/*.mp3
+**/*.wav
+**/*.m4a
+**/*.webm
+**/*.mp4
+**/*.opus
+**/*.ogg

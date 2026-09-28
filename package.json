@@ -9,8 +9,13 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "node --test --import tsx tests/*.test.ts",
-    "worker": "tsx src/worker.ts",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "worker": "tsx scripts/worker.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "local:dev": "tsx scripts/local-server.ts",
+    "local:start": "tsx scripts/local-server.ts --built",
+    "history:inspect": "tsx scripts/history.ts",
+    "history:import": "tsx scripts/history.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@next/env": "^15.3.3",

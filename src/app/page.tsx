@@ -4,6 +4,9 @@ import { getPlatformConfigurationStatus } from "@/lib/platform-config";
 import { getCurrentUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
 
+import { appMode } from "@/lib/app-mode";
+import { localDownloadDiagnostics } from "@/lib/local-download";
+
 export default async function Home() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -12,5 +15,5 @@ export default async function Home() {
   const configured = getPlatformConfigurationStatus();
   const failures = await listOperationFailures(user.id);
 
-  return <Dashboard username={user.username} initialStatus={status} initialConfigured={configured} initialPlaylists={playlists} initialFailures={failures} />;
+  return <Dashboard localDiagnostics={appMode()==="local" ? await localDownloadDiagnostics() : undefined} username={user.username} initialStatus={status} initialConfigured={configured} initialPlaylists={playlists} initialFailures={failures} />;
 }

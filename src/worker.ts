@@ -9,6 +9,10 @@ import { syncPlaylists } from "./lib/sync/engine";
 import { deletePrivateObjects, downloadBucket, uploadPrivateObject } from "./lib/storage";
 import { MAX_ZIP_PART_BYTES as MAX_PART, planZipParts } from "./lib/download-limits";
 
+import { appMode } from "./lib/app-mode";
+import { localDownloadConfig, runLocalDownloads } from "./lib/local-download";
+import { isQaUser } from "./lib/jobs";
+
 const POLL_MS=Number(process.env.WORKER_POLL_MS??"3000");
 const HEARTBEAT_MS=Number(process.env.WORKER_HEARTBEAT_MS??"15000");
 const tempRoot=process.env.DOWNLOAD_TEMP_ROOT??join(process.cwd(),"data","jobs");
@@ -47,6 +51,18 @@ function safeName(name:string){return name.normalize("NFKD").replace(/[^a-zA-Z0-
 async function processDownload(job:JobRecord){
   const ids=job.request.playlistIds as string[];const mappings=(await Promise.all(ids.map(id=>getPlaylistMapping(job.userId,id)))).filter((p):p is NonNullable<typeof p>=>!!p&&!!p.youtubeId).map(p=>({id:p.id,name:p.name,youtubeId:p.youtubeId!}));
   if(!mappings.length){await failJob(job,"no_youtube_playlists","No selected playlist is linked to YouTube.",false);return;}
+  if(appMode()==="local") {
+    if(!(await isQaUser(job.userId)) || job.request.delivery!=="local_filesystem") throw new Error("Local job workspace or delivery mode is invalid.");
+    const config=await localDownloadConfig();
+    const history=await sql`select extractor,track_id from local_download_history where user_id=${job.userId}`;
+    await addJobEvent(job.id,job.userId,"info","local_download_started","Local filesystem download started; files stay on this computer.");
+    await runLocalDownloads(config,mappings,{cancelled:()=>jobCancelled(job.id),progress:(current,total)=>updateJobProgress(job.id,current,total,"Downloading to local filesystem"),history:history.map(row=>`${row.extractor} ${row.track_id}`)});
+    if(await jobCancelled(job.id)) return;
+    for(const mapping of mappings) await updatePlaylistActivity(job.userId,mapping.id,"download");
+    await finishJob(job,{delivery:"local_filesystem",playlistCount:mappings.length});
+    return;
+  }
+  if(!(await isQaUser(job.userId))) { await failJob(job,"qa_disabled","QA exports are disabled for this account.",false); return; }
   const jobDir=join(tempRoot,job.id),musicDir=join(jobDir,"music");await mkdir(musicDir,{recursive:true});
   try{await updateJobProgress(job.id,0,mappings.length,"Downloading eligible audio for QA export");await addJobEvent(job.id,job.userId,"info","download_started","QA-only download worker started.");
     const results=await runDownloader(job,mappings,musicDir);if(await jobCancelled(job.id))return;
