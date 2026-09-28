@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import postgres from "postgres";
 import { appMode } from "../src/lib/app-mode";
 import { buildHistoryPlan, parseLegacyJson } from "../src/lib/history-plan";
-import { ensureLocalWorkspace } from "../src/lib/local-workspace";
+import { ensureLocalWorkspace, LOCAL_WORKSPACE_USERNAME } from "../src/lib/local-workspace";
 import type { SyncArchiveEntry } from "../src/lib/types";
 
 loadEnvConfig(process.cwd());
@@ -16,15 +16,16 @@ function option(key: string, fallback?: string) {
   if (!args[index+1] || args[index+1].startsWith("--")) throw new Error(`${key} requires a value.`);
   return args[index+1];
 }
+function options(key:string):string[] { return args.flatMap((arg,index)=>arg===key ? [args[index+1]] : []); }
 async function main() {
   for (let i=0;i<args.length;i++) {
     if (!allowed.has(args[i])) throw new Error("Unknown history argument. Use --playlists, --synced, --archive, --report, --user, --database or --apply.");
     if (!["--apply", "--database"].includes(args[i])) i++;
   }
   const apply = args.includes("--apply");
-  const plan = buildHistoryPlan(parseLegacyJson(await readFile(option("--playlists", "playlists.json")!, "utf8"), "playlists.json"), parseLegacyJson(await readFile(option("--synced", "synced.json")!, "utf8"), "synced.json"), option("--archive") ? await readFile(option("--archive")!, "utf8") : "");
+  const plan = buildHistoryPlan(parseLegacyJson(await readFile(option("--playlists", "playlists.json")!, "utf8"), "playlists.json"), parseLegacyJson(await readFile(option("--synced", "synced.json")!, "utf8"), "synced.json"), (await Promise.all(options("--archive").map(path=>readFile(path,"utf8")))).join("\n"));
   const path=resolve(option("--report","data/history-import-report.json")!);
-  if ([resolve(option("--playlists","playlists.json")!),resolve(option("--synced","synced.json")!),...(option("--archive")?[resolve(option("--archive")!)]:[])].includes(path)) throw new Error("Report cannot overwrite an input history file.");
+  if ([resolve(option("--playlists","playlists.json")!),resolve(option("--synced","synced.json")!),...options("--archive").map(path=>resolve(path))].includes(path)) throw new Error("Report cannot overwrite an input history file.");
   if(!path.endsWith(".json")) throw new Error("Import report must be a JSON file in private report storage.");
   if(await stat(path).then(()=>true,()=>false)) {
     const prior=parseLegacyJson(await readFile(path,"utf8"),"Existing report");
@@ -47,7 +48,7 @@ async function main() {
         if (!apply) await tx`set transaction read only`;
         let userId = userOption;
         if (!userId && mode === "local") {
-          const existing = await tx`select id from users where is_local_system=true and username='__local_workspace__'`;
+          const existing = await tx`select id from users where is_local_system=true and username=${LOCAL_WORKSPACE_USERNAME}`;
           userId = existing[0]?.id;
           if (!userId && apply) userId = (await ensureLocalWorkspace(tx as unknown as typeof sql)).id;
           if (!userId) { Object.assign(writes,{playlistsCreated:plan.playlists.length,archivesCreated:Object.keys(plan.archives).length,syncRecordsCreated:plan.counts.syncRecords,mappingsCreated:plan.matches.length,downloadEntriesCreated:plan.downloads.length}); return; }

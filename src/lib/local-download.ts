@@ -35,13 +35,21 @@ export async function localDownloadConfig(): Promise<LocalDownloadConfig> {
     const candidates = [ ...(process.env.APPDATA ? [join(process.env.APPDATA, "yt-dlp", "config"), join(process.env.APPDATA, "yt-dlp", "config.txt")] : []), join(homedir(), "yt-dlp.conf"), join(homedir(), "yt-dlp.conf.txt"), join(homedir(), ".config", "yt-dlp", "config"), join(homedir(), ".config", "yt-dlp", "config.txt") ];
     for (const path of candidates) if (await exists(path)) { configs = [path]; break; }
   }
-  const archive = expand(process.env.LOCAL_DOWNLOAD_ARCHIVE || settings.download_archive || join("data", "local", "download-archive.log"));
+  let configArchive: string | undefined;
+  for(const path of configs) {
+    const text=await readFile(path,"utf8");
+    for(const line of text.split(/\r?\n/)) {
+      const match=line.match(/^\s*--download-archive(?:\s+|=)(?:"([^"]+)"|'([^']+)'|([^#]+?))\s*(?:#.*)?$/);
+      if(match) configArchive=(match[1]??match[2]??match[3]).trim();
+    }
+  }
+  const archive = expand(process.env.LOCAL_DOWNLOAD_ARCHIVE || settings.download_archive || configArchive || join("data", "local", "download-archive.log"));
   if (!(await exists(dirname(archive)))) {
-    if (process.env.LOCAL_DOWNLOAD_ARCHIVE || settings.download_archive) throw new Error("Download archive parent directory is missing. Create it or correct LOCAL_DOWNLOAD_ARCHIVE.");
+    if (process.env.LOCAL_DOWNLOAD_ARCHIVE || settings.download_archive || configArchive) throw new Error("Download archive parent directory is missing. Create it or correct LOCAL_DOWNLOAD_ARCHIVE.");
     await mkdir(dirname(archive), { recursive: true });
   }
   if (await exists(archive) && !(await stat(archive)).isFile()) throw new Error("Download archive must be a file.");
-  const seedArchives = [process.env.LOCAL_YTDLP_ARCHIVE, join(process.cwd(), "legacy", "yt_archive.log"), join(process.cwd(), "yt_archive.log")].filter((p): p is string => Boolean(p)).map(expand);
+  const seedArchives = [process.env.LOCAL_YTDLP_ARCHIVE, join(process.cwd(), "legacy", "yt_archive.log"), join(process.cwd(), "yt_archive.log"), join(process.cwd(), "downloaded.log"), join(process.cwd(), "legacy", "downloaded.log")].filter((p): p is string => Boolean(p)).map(expand);
   if (process.env.LOCAL_YTDLP_ARCHIVE && !(await stat(expand(process.env.LOCAL_YTDLP_ARCHIVE)).catch(() => null))?.isFile()) throw new Error("LOCAL_YTDLP_ARCHIVE is missing or is not a file.");
   if (settings.extra_args && (!Array.isArray(settings.extra_args) || settings.extra_args.some(p => typeof p !== "string"))) throw new Error("Legacy extra_args must be an array of strings.");
   return { musicDir, configs, archive, seedArchives, python: process.env.PYTHON_PATH || (process.platform === "win32" ? "python" : "python3"), executable: settings.ytdlp_path && settings.ytdlp_path !== "yt-dlp" ? settings.ytdlp_path : undefined, extraArgs: settings.extra_args ?? [], format: settings.audio_format ?? "flac", quality: settings.audio_quality ?? "0", settingsSource: source ? "legacy/ytdlp_settings.json compatibility" : "environment / standard yt-dlp discovery" };
