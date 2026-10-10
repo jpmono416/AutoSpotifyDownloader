@@ -179,7 +179,13 @@ export default function Dashboard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playlistIds: Array.from(selected) }),
       });
-      const data=await res.json();if(!res.ok)throw new Error(data.error??`Export failed (${res.status})`);setLogs([localDiagnostics?`Queued local download ${data.job.id}. Run pnpm worker on this computer.`:`Queued QA export ${data.job.id}. It will continue in the Railway worker.`]);
+      const data=await res.json();if(!res.ok)throw new Error(data.error??`Export failed (${res.status})`);
+      setLogs(localDiagnostics
+        ? [
+            `Local download queued. It will start automatically and save files to ${localDiagnostics.directory ?? "your configured output folder"}.`,
+            "Follow progress and any errors in Job activity. You can close this page while the download runs.",
+          ]
+        : [`Queued QA export ${data.job.id}. It will continue in the Railway worker.`]);
     } catch (err) {
       setLogs((previous) => [...previous, `Error: ${err instanceof Error ? err.message : String(err)}`]);setActivityMessage(err instanceof Error?err.message:String(err));
     } finally {
