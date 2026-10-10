@@ -1,5 +1,30 @@
 # Local single-user workspace
 
+## Restart the configured Windows PC workspace
+
+On the owner's PC, the existing `asd-local` Docker container and private
+`data/local/runtime.json` preserve the dedicated database and connection settings.
+From the repository root, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1
+```
+
+The script starts that existing container, resolves its current loopback port
+(Docker may assign a different port after a restart), and starts the app and one
+worker in hidden windows. It preserves a local token encryption key in ignored
+runtime settings. Keep that file with the database; provider tokens require the
+same key after restarting. Logs and process IDs are in ignored `data/local/`.
+Open `http://127.0.0.1:3000` for the default saved app port.
+To stop these processes, read `data/local/processes.json` and use
+`Stop-Process -Id APP_PID,WORKER_PID` with its recorded IDs. The launcher refuses
+to start when that app port or one of its recorded processes is still active.
+
+The script requires the previously configured container/runtime, installed Node,
+and `C:\Python312\python.exe`. First-time setup follows below. History is imported
+separately using the history-import guide; restarting never reimports or rewrites
+the source files.
+
 Production remains the default, including under `NODE_ENV=development`. Local mode
 uses a dedicated loopback Postgres database and the existing durable jobs, ownership
 queries and encrypted token storage. SQLite/JSON are not runtime storage options.
