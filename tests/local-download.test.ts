@@ -48,3 +48,32 @@ test("cancellation terminates the local downloader process tree",async()=>{
     assert.ok(Date.now()-started<5000,"downloader must stop promptly after cancellation");
   } finally {process.chdir(cwd);for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);assert.ok(resolve(dir).startsWith(resolve(tmpdir())));await rm(dir,{recursive:true,force:true});}
 });
+
+test("track errors finish with skips, keep good downloads and continue to the next playlist",async()=>{
+  const dir=await mkdtemp(join(tmpdir(),"asd-skip-")),cwd=process.cwd(),env={...process.env};
+  try {
+    process.chdir(dir);Object.assign(process.env,{APP_MODE:"local",LOCAL_DATABASE_URL:"postgresql://test:test@127.0.0.1/test"});
+    const fake=join(dir,"skip.cjs"),archive=join(dir,"archive.log"),good="G".repeat(11),bad="B".repeat(11);
+    await writeFile(fake,`const fs=require('fs'),a=process.argv;const path=a[a.indexOf('--download-archive')+1];if(a.at(-1).includes('${"C".repeat(32)}')){fs.appendFileSync(path,'youtube ${good}\\n');console.error('WARNING: Authorization: Bearer sensitive-value');console.error('ERROR: [youtube] ${bad}: Video unavailable https://example.test/?token=private access_token=secret');console.log('[download] Finished downloading playlist: first');process.exitCode=1;}else{console.log('[download] Finished downloading playlist: second');}`);
+    const config:LocalDownloadConfig={musicDir:dir,configs:[],archive,seedArchives:[],python:process.execPath,executable:process.execPath,extraArgs:[fake],format:"flac",quality:"0",settingsSource:"test"};
+    const progress:number[]=[];
+    const result=await runLocalDownloads(config,[{youtubeId:"PL"+"C".repeat(32),name:"First"},{youtubeId:"PL"+"D".repeat(32),name:"Second"}],{cancelled:async()=>false,progress:async current=>{progress.push(current);},history:[]});
+    assert.deepEqual(progress,[1,2]);assert.equal(result.skippedTracks.length,1);assert.equal(result.skippedTracks[0].videoId,bad);
+    assert.deepEqual(archiveLines(await readFile(archive,"utf8")),[`youtube ${good}`]);
+    const log=await readFile(result.diagnosticFile,"utf8");assert.match(log,/Video unavailable/);assert.ok(!log.includes('private'));assert.ok(!log.includes('secret'));assert.ok(!log.includes('sensitive-value'));assert.match(log,/\[redacted\]/);
+  } finally {process.chdir(cwd);for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);assert.ok(resolve(dir).startsWith(resolve(tmpdir())));await rm(dir,{recursive:true,force:true});}
+});
+
+test("playlist and setup failures stay failures with captured diagnostics",async()=>{
+  const dir=await mkdtemp(join(tmpdir(),"asd-fatal-")),cwd=process.cwd(),env={...process.env};
+  try {
+    process.chdir(dir);Object.assign(process.env,{APP_MODE:"local",LOCAL_DATABASE_URL:"postgresql://test:test@127.0.0.1/test"});
+    const fake=join(dir,"fatal.cjs");await writeFile(fake,"console.error('ERROR: [youtube:tab] Playlist does not exist');process.exitCode=1;");
+    const config:LocalDownloadConfig={musicDir:dir,configs:[],archive:join(dir,"archive.log"),seedArchives:[],python:process.execPath,executable:process.execPath,extraArgs:[fake],format:"flac",quality:"0",settingsSource:"test"};
+    await assert.rejects(runLocalDownloads(config,[{youtubeId:"PL"+"C".repeat(32),name:"Missing"}],{cancelled:async()=>false,progress:async()=>{assert.fail('failed playlist cannot report completion');},history:[]}),/Playlist does not exist/);
+    await writeFile(fake,"console.error('ERROR: [youtube] BBBBBBBBBBB: Video unavailable');process.exitCode=2;");
+    await assert.rejects(runLocalDownloads(config,[{youtubeId:"PL"+"C".repeat(32),name:"Bad process"}],{cancelled:async()=>false,progress:async()=>{},history:[]}),/yt-dlp failed/);
+    await writeFile(fake,"console.error('ERROR: invalid configuration');console.log('[download] Finished downloading playlist: misleading');");
+    await assert.rejects(runLocalDownloads(config,[{youtubeId:"PL"+"C".repeat(32),name:"Invalid config"}],{cancelled:async()=>false,progress:async()=>{},history:[]}),/invalid configuration/);
+  } finally {process.chdir(cwd);for(const key of Object.keys(process.env))if(!(key in env))delete process.env[key];Object.assign(process.env,env);assert.ok(resolve(dir).startsWith(resolve(tmpdir())));await rm(dir,{recursive:true,force:true});}
+});

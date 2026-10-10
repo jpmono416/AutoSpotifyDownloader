@@ -92,6 +92,16 @@ Cancellation kills the yt-dlp process tree. Progress is per playlist. Partial me
 and yt-dlp archives remain on disk so a restarted job can resume/deduplicate. Local
 media is never loaded into browser memory or uploaded to Supabase.
 
+Local downloads explicitly continue after individual video errors. When yt-dlp
+finishes a playlist with unavailable or otherwise failing tracks, the job completes
+with a skipped-track count and records the video IDs/reasons in Failed Operations
+and job events. Skipped tracks are not added to the download archive. Playlist,
+configuration and process failures still fail the job with the captured reason.
+Sanitized error/warning logs are saved under ignored `data/local/download-*.log`;
+provider URLs and credentials are redacted. The local worker enables its existing
+Node executable as yt-dlp's JavaScript runtime. Install the matching EJS dependencies
+with `python -m pip install --user --upgrade "yt-dlp[default]"` when setting up Python.
+
 Local downloads do not require the production QA enable flag/allowlist. Production
 downloads still require both, and the worker rechecks eligibility before execution.
 Only local system jobs can be claimed by a local worker; production workers exclude

@@ -5,9 +5,21 @@ import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { appMode } from "./app-mode";
+import { createInterface } from "node:readline";
+import { randomUUID } from "node:crypto";
 
 interface LegacySettings { music_dir?: string; config_locations?: string[]; download_archive?: string; ytdlp_path?: string; extra_args?: string[]; audio_format?: string; audio_quality?: string }
 export interface LocalDownloadConfig { musicDir: string; configs: string[]; archive: string; seedArchives: string[]; python: string; executable?: string; extraArgs: string[]; format: string; quality: string; settingsSource: string }
+export interface LocalDownloadResult { skippedTracks: Array<{ youtubeId: string; videoId: string; message: string }>; warnings: string[]; diagnosticFile: string }
+
+function safeDiagnostic(line: string): string {
+  return line.replace(/\u001b\[[0-9;]*m/g, "")
+    .replaceAll(homedir(), "~")
+    .replace(/https?:\/\/\S+/gi, "[link]")
+    .replace(/((?:authorization|set-cookie|cookie)\s*[:=]\s*)[^\r\n]+/gi, "$1[redacted]")
+    .replace(/((?:access[_-]?token|refresh[_-]?token|authorization|cookie|password|secret)\s*[:=]\s*)[^\s,;]+/gi, "$1[redacted]")
+    .slice(0, 1500);
+}
 function expand(path: string) { return resolve(path.replace(/^~(?=[/\\]|$)/, homedir())); }
 async function exists(path: string) { return stat(path).then(() => true, () => false); }
 
@@ -68,25 +80,53 @@ export function archiveLines(text: string): string[] {
 }
 
 /** Seed a private job archive without rewriting the user's existing archives. */
-export async function runLocalDownloads(config: LocalDownloadConfig, playlists: Array<{ youtubeId: string; name: string }>, hooks: { cancelled: () => Promise<boolean>; progress: (current: number, total: number) => Promise<void>; history: string[] }): Promise<void> {
+export async function runLocalDownloads(config: LocalDownloadConfig, playlists: Array<{ youtubeId: string; name: string }>, hooks: { cancelled: () => Promise<boolean>; progress: (current: number, total: number) => Promise<void>; history: string[] }): Promise<LocalDownloadResult> {
   if (appMode() !== "local") throw new Error("Local downloader requires trusted local mode.");
   const runtime = join(process.cwd(), "data", "local");
   await mkdir(runtime, { recursive: true });
   const sources = await Promise.all([config.archive, join(runtime,"working-archive.log"), ...config.seedArchives].map(path => readFile(path, "utf8").catch(error => { if (error.code === "ENOENT") return ""; throw new Error("Cannot read a local download archive. Check file permissions."); })));
   const initial = new Set(archiveLines([...sources, ...hooks.history].join("\n")));
   const workingArchive = join(runtime, "working-archive.log");
+  const diagnosticFile = join(runtime, `download-${randomUUID()}.log`);
+  const diagnostics: string[] = [];
+  const result: LocalDownloadResult = { skippedTracks: [], warnings: [], diagnosticFile };
   await writeFile(workingArchive, [...initial].join("\n") + "\n", { mode: 0o600 });
   console.info(JSON.stringify({ event: "local_downloader_start", playlistCount: playlists.length, archiveEntries: initial.size }));
   try {
     for (let index = 0; index < playlists.length; index++) {
-      if (await hooks.cancelled()) return;
+      if (await hooks.cancelled()) return result;
       const playlist = playlists[index];
       const folder = playlist.name.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/^\.+$/, "playlist").slice(0, 80) || "playlist";
       const args = [...(config.executable ? [] : ["-m", "yt_dlp"]), ...config.configs.flatMap(path => ["--config-locations", path]), ...config.extraArgs,
         "--extract-audio", "--audio-format", config.format, "--audio-quality", config.quality, "--no-overwrites", "--download-archive", workingArchive,
-        "-o", join(config.musicDir, folder, "%(title)s [%(id)s].%(ext)s"), "--newline", "--no-colors", "--", `https://www.youtube.com/playlist?list=${playlist.youtubeId}`];
+        "-o", join(config.musicDir, folder, "%(title)s [%(id)s].%(ext)s"), "--newline", "--no-colors", "--no-quiet", "--no-abort-on-error",
+        "--js-runtimes", `node:${process.execPath}`, "--", `https://www.youtube.com/playlist?list=${playlist.youtubeId}`];
       await new Promise<void>((accept, reject) => {
-        const child = spawn(config.executable || config.python, args, { stdio: "ignore", detached: process.platform !== "win32" });
+        const child = spawn(config.executable || config.python, args, { stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32", windowsHide: true });
+        let currentVideo: string | undefined;
+        let finishedPlaylist = false;
+        const trackErrors: Array<{ videoId: string; message: string }> = [];
+        const fatalErrors: string[] = [];
+        createInterface({ input: child.stdout }).on("line", line => {
+          const video = line.match(/^\[youtube\] ([A-Za-z0-9_-]{11}):/);
+          if (video) currentVideo = video[1];
+          if (line.startsWith("[download] Finished downloading playlist:")) finishedPlaylist = true;
+        });
+        createInterface({ input: child.stderr }).on("line", line => {
+          if (!/^(ERROR|WARNING):/.test(line)) return;
+          const message = safeDiagnostic(line);
+          if (diagnostics.length < 500) diagnostics.push(message);
+          if (line.startsWith("WARNING:")) {
+            if (result.warnings.length < 100 && !result.warnings.includes(message)) result.warnings.push(message);
+            return;
+          }
+          const video = line.match(/^ERROR: \[youtube\] ([A-Za-z0-9_-]{11}):/);
+          // Unscoped setup/playlist errors remain fatal; postprocessing/download
+          // errors belong to a video only when yt-dlp identified that video first.
+          const videoId = video?.[1] ?? (/^ERROR: (?:Postprocessing:|unable to download video data:)/.test(line) ? currentVideo : undefined);
+          if (videoId) trackErrors.push({ videoId, message });
+          else fatalErrors.push(message);
+        });
         let checking = false;
         const kill = () => {
           if (process.platform === "win32") spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
@@ -94,16 +134,33 @@ export async function runLocalDownloads(config: LocalDownloadConfig, playlists: 
         };
         const timer = setInterval(async () => { if (checking) return; checking = true; try { if (await hooks.cancelled()) kill(); } catch { kill(); } finally { checking = false; } }, 1000);
         child.once("error", () => { clearInterval(timer); reject(new Error("Could not launch yt-dlp. Check PYTHON_PATH and install yt-dlp and FFmpeg.")); });
-        child.once("exit", async code => { clearInterval(timer); if (code === 0 || await hooks.cancelled()) accept(); else reject(new Error("yt-dlp failed. Check provider access, yt-dlp configuration and FFmpeg; partial downloads remain archived.")); });
+        child.once("close", async code => {
+          clearInterval(timer);
+          try {
+            if (await hooks.cancelled()) { accept(); return; }
+            if (fatalErrors.length || (code !== 0 && !(code === 1 && finishedPlaylist && trackErrors.length))) {
+              reject(new Error(`yt-dlp failed: ${fatalErrors[0] ?? trackErrors[0]?.message ?? "No diagnostic was returned. Check Python, yt-dlp and FFmpeg."} Partial downloads remain archived.`));
+              return;
+            }
+            for (const error of trackErrors) {
+              if (!result.skippedTracks.some(item => item.youtubeId === playlist.youtubeId && item.videoId === error.videoId && item.message === error.message)) {
+                result.skippedTracks.push({ youtubeId: playlist.youtubeId, ...error });
+              }
+            }
+            accept();
+          } catch (error) { reject(error); }
+        });
       });
       await hooks.progress(index + 1, playlists.length);
     }
+    return result;
   } finally {
     // Append only newly completed IDs; original archives are never replaced or merged in-place.
     const completed = archiveLines(await readFile(workingArchive, "utf8"));
     const existing = new Set(archiveLines(await readFile(config.archive, "utf8").catch(() => "")));
     const added = completed.filter(line => !initial.has(line) && !existing.has(line));
     if (added.length) await appendFile(config.archive, "\n" + added.join("\n") + "\n", { mode: 0o600 });
+    await writeFile(diagnosticFile, diagnostics.join("\n") + "\n", { mode: 0o600 });
     console.info(JSON.stringify({ event: "local_downloader_completion", completedEntries: added.length }));
   }
 }

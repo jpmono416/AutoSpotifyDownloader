@@ -56,10 +56,16 @@ async function processDownload(job:JobRecord){
     const config=await localDownloadConfig();
     const history=await sql`select extractor,track_id from local_download_history where user_id=${job.userId}`;
     await addJobEvent(job.id,job.userId,"info","local_download_started","Local filesystem download started; files stay on this computer.");
-    await runLocalDownloads(config,mappings,{cancelled:()=>jobCancelled(job.id),progress:(current,total)=>updateJobProgress(job.id,current,total,"Downloading to local filesystem"),history:history.map(row=>`${row.extractor} ${row.track_id}`)});
+    const downloadResult=await runLocalDownloads(config,mappings,{cancelled:()=>jobCancelled(job.id),progress:(current,total)=>updateJobProgress(job.id,current,total,"Downloading to local filesystem"),history:history.map(row=>`${row.extractor} ${row.track_id}`)});
     if(await jobCancelled(job.id)) return;
+    for(const skipped of downloadResult.skippedTracks) {
+      const mapping=mappings.find(item=>item.youtubeId===skipped.youtubeId)!;
+      await recordOperationFailure(job.userId,{playlistId:mapping.id,playlistName:mapping.name,trackLabel:`YouTube ${skipped.videoId}`,operation:"download",explanation:skipped.message});
+      await addJobEvent(job.id,job.userId,"warning","track_skipped",skipped.message,{videoId:skipped.videoId});
+    }
+    for(const warning of downloadResult.warnings) await addJobEvent(job.id,job.userId,"warning","downloader_warning",warning);
     for(const mapping of mappings) await updatePlaylistActivity(job.userId,mapping.id,"download");
-    await finishJob(job,{delivery:"local_filesystem",playlistCount:mappings.length});
+    await finishJob(job,{delivery:"local_filesystem",playlistCount:mappings.length,skippedTrackCount:downloadResult.skippedTracks.length},downloadResult.skippedTracks.length?`Completed with ${downloadResult.skippedTracks.length} skipped tracks — see Failed Operations for details.`:"Completed");
     return;
   }
   if(!(await isQaUser(job.userId))) { await failJob(job,"qa_disabled","QA exports are disabled for this account.",false); return; }
