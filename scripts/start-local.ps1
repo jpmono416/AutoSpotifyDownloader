@@ -35,6 +35,13 @@ if ($taskDbUri.Host -ne '127.0.0.1' -or $taskDbUri.Path -ne '/asd_local') {
 }
 $taskDbUri.Port = $taskDbPort
 $taskRuntime.databaseUrl = $taskDbUri.Uri.AbsoluteUri.TrimEnd('/')
+$taskReady = $false
+for ($taskAttempt = 0; $taskAttempt -lt 30; $taskAttempt++) {
+    docker exec asd-local pg_isready -U postgres -d asd_local 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) { $taskReady = $true; break }
+    Start-Sleep -Seconds 1
+}
+if (!$taskReady) { throw 'Local database did not become ready.' }
 if (!$taskRuntime.PSObject.Properties['tokenEncryptionKey']) {
     $taskTokenCount = docker exec asd-local psql -U postgres -d asd_local -Atc 'select count(*) from platform_tokens;'
     if ($LASTEXITCODE -ne 0 -or $taskTokenCount.Trim() -ne '0') {
@@ -46,13 +53,6 @@ if (!$taskRuntime.PSObject.Properties['tokenEncryptionKey']) {
     $taskRuntime | Add-Member -NotePropertyName tokenEncryptionKey -NotePropertyValue ([Convert]::ToBase64String($taskKeyBytes))
 }
 $taskRuntime | ConvertTo-Json | Set-Content -LiteralPath $taskRuntimePath
-$taskReady = $false
-for ($taskAttempt = 0; $taskAttempt -lt 30; $taskAttempt++) {
-    docker exec asd-local pg_isready -U postgres -d asd_local 2>&1 | Out-Null
-    if ($LASTEXITCODE -eq 0) { $taskReady = $true; break }
-    Start-Sleep -Seconds 1
-}
-if (!$taskReady) { throw 'Local database did not become ready.' }
 $env:APP_MODE = 'local'
 $env:LOCAL_DATABASE_URL = $taskRuntime.databaseUrl
 $env:NEXT_PUBLIC_APP_URL = "http://127.0.0.1:$taskPort"
